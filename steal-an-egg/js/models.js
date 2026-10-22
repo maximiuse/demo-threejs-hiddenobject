@@ -105,6 +105,16 @@ function eyes(rig, parent, x, y, z, size = 0.14, color = '#111', brows = true) {
   }
 }
 
+const haloGeo = new THREE.TorusGeometry(0.42, 0.07, 6, 20);
+const haloMat = new THREE.MeshBasicMaterial({ color: '#ffe57f' });
+function halo(parent, y) {
+  const h = new THREE.Mesh(haloGeo, haloMat);
+  h.rotation.x = Math.PI / 2;
+  h.position.y = y;
+  parent.add(h);
+  return h;
+}
+
 // Builds an animal rig facing +z. Returns { root, legs, wings, tail, head, eyes, height }.
 export function createAnimal(id) {
   const root = new THREE.Group();
@@ -322,6 +332,187 @@ export function createAnimal(id) {
         rig.wings.push(w);
       }
       rig.height = 5.0;
+      break;
+    }
+    case 'cherub': {
+      const S = '#ffe0c8';
+      leg(r, L, 0.32, 0.55, 0.32, S, -0.22, 0.6, 0, 0, null);
+      leg(r, L, 0.32, 0.55, 0.32, S, 0.22, 0.6, 0, Math.PI, null);
+      box(r, 0.98, 0.45, 0.78, '#ffffff', 0, 0.78, 0);
+      box(r, 0.95, 0.75, 0.75, S, 0, 1.35, 0);
+      for (const s of [-1, 1]) box(r, 0.26, 0.6, 0.3, S, s * 0.6, 1.35, 0.05);
+      head = pivot(r, 0, 1.72, 0);
+      box(head, 1.0, 0.95, 0.9, S, 0, 0.45, 0);
+      box(head, 1.06, 0.3, 0.96, '#ffd54f', 0, 0.95, -0.02);
+      box(head, 1.06, 0.55, 0.2, '#ffd54f', 0, 0.68, -0.43);
+      box(head, 0.26, 0.26, 0.26, '#ffca28', -0.32, 1.12, 0.22);
+      box(head, 0.26, 0.26, 0.26, '#ffca28', 0.28, 1.14, 0.05);
+      box(head, 0.2, 0.12, 0.04, '#f48fb1', -0.33, 0.28, 0.46);
+      box(head, 0.2, 0.12, 0.04, '#f48fb1', 0.33, 0.28, 0.46);
+      eyes(rig, head, 0.2, 0.5, 0.46, 0.13, '#1565c0', false);
+      halo(head, 1.4);
+      for (const s of [-1, 1]) {
+        const w = pivot(r, s * 0.4, 1.6, -0.42);
+        w.rotation.y = s * 0.35;
+        box(w, 1.2, 0.75, 0.12, '#ffffff', s * 0.6, 0.15, 0);
+        box(w, 0.8, 0.4, 0.12, '#eceff1', s * 0.7, -0.35, 0);
+        w.userData.side = s;
+        w.userData.flap = true;
+        rig.wings.push(w);
+      }
+      rig.height = 3.4;
+      break;
+    }
+    case 'imp': {
+      const R = '#d32f2f';
+      const foot = [0.34, 0.1, 0.44, '#3e2723', 0.06];
+      leg(r, L, 0.28, 0.6, 0.3, '#b71c1c', -0.22, 0.65, 0, 0, foot);
+      leg(r, L, 0.28, 0.6, 0.3, '#b71c1c', 0.22, 0.65, 0, Math.PI, foot);
+      box(r, 0.85, 0.8, 0.6, R, 0, 1.05, 0);
+      head = pivot(r, 0, 1.45, 0.05);
+      box(head, 0.9, 0.8, 0.8, R, 0, 0.4, 0);
+      box(head, 0.16, 0.42, 0.16, '#212121', -0.3, 0.98, 0).rotation.z = 0.35;
+      box(head, 0.16, 0.42, 0.16, '#212121', 0.3, 0.98, 0).rotation.z = -0.35;
+      box(head, 0.3, 0.16, 0.1, R, -0.55, 0.48, 0).rotation.z = -0.3;
+      box(head, 0.3, 0.16, 0.1, R, 0.55, 0.48, 0).rotation.z = 0.3;
+      box(head, 0.52, 0.1, 0.05, '#ffffff', 0, 0.16, 0.41);
+      eyes(rig, head, 0.2, 0.5, 0.41, 0.12, '#ffeb3b');
+      for (const s of [-1, 1]) {
+        const w = pivot(r, s * 0.35, 1.3, -0.3);
+        w.rotation.y = s * 0.4;
+        box(w, 1.1, 0.6, 0.08, '#4a0e0e', s * 0.55, 0.1, 0);
+        box(w, 1.1, 0.1, 0.12, '#1a0505', s * 0.55, 0.42, 0);
+        w.userData.side = s;
+        w.userData.flap = true;
+        rig.wings.push(w);
+      }
+      rig.tail = pivot(r, 0, 0.85, -0.3);
+      box(rig.tail, 0.12, 0.12, 0.9, R, 0, 0, -0.45);
+      box(rig.tail, 0.3, 0.3, 0.08, '#212121', 0, 0, -0.95).rotation.z = Math.PI / 4;
+      rig.height = 2.8;
+      break;
+    }
+    case 'seraph': {
+      const foot = [0.34, 0.1, 0.42, '#ffd54f', 0.05];
+      leg(r, L, 0.3, 0.5, 0.3, '#fafafa', -0.25, 0.55, 0, 0, foot);
+      leg(r, L, 0.3, 0.5, 0.3, '#fafafa', 0.25, 0.55, 0, Math.PI, foot);
+      box(r, 1.2, 1.9, 0.9, '#fafafa', 0, 1.45, 0);
+      box(r, 1.24, 0.15, 0.94, '#ffd54f', 0, 1.6, 0);
+      box(r, 1.24, 0.12, 0.94, '#ffd54f', 0, 0.55, 0);
+      for (const s of [-1, 1]) box(r, 0.34, 1.0, 0.45, '#f5f5f5', s * 0.75, 1.95, 0.05);
+      head = pivot(r, 0, 2.4, 0);
+      box(head, 0.8, 0.85, 0.8, '#f3d9c4', 0, 0.45, 0);
+      box(head, 0.86, 0.25, 0.86, '#ffe082', 0, 0.92, 0);
+      box(head, 0.86, 0.85, 0.2, '#ffe082', 0, 0.45, -0.42);
+      eyes(rig, head, 0.18, 0.5, 0.41, 0.11, '#40c4ff', false);
+      halo(head, 1.35);
+      [[2.95, 1.4], [2.35, 1.7], [1.7, 1.3]].forEach(([y, len]) => {
+        for (const s of [-1, 1]) {
+          const w = pivot(r, s * 0.45, y, -0.45);
+          w.rotation.y = s * 0.3;
+          box(w, len, 0.5, 0.1, '#fffde7', s * len / 2, 0, 0);
+          box(w, len, 0.1, 0.12, '#ffe082', s * len / 2, 0.22, 0);
+          w.userData.side = s;
+          w.userData.flap = true;
+          rig.wings.push(w);
+        }
+      });
+      rig.height = 4.1;
+      break;
+    }
+    case 'hellhound': {
+      const D = '#263238';
+      quad(r, L, 0.35, 1.0, '#1c2429', 0.45, 0.8, 1.05, '#111111');
+      box(r, 1.3, 1.1, 2.4, D, 0, 1.55, 0);
+      box(r, 1.5, 0.4, 1.0, '#ff6d00', 0, 2.2, 0.6);
+      box(r, 1.0, 0.3, 1.4, '#ffab00', 0, 2.15, -0.2);
+      rig.tail = pivot(r, 0, 1.8, -1.2);
+      box(rig.tail, 0.3, 0.3, 1.2, '#ff6d00', 0, 0.15, -0.55).rotation.x = -0.5;
+      for (const k of [-1, 0, 1]) {
+        const hp = pivot(r, k * 0.55, 2.0, 1.2);
+        hp.rotation.y = k * 0.35;
+        box(hp, 0.6, 0.6, 0.7, D, 0, 0.1, 0.2);
+        box(hp, 0.36, 0.3, 0.42, '#37474f', 0, -0.05, 0.66);
+        box(hp, 0.12, 0.1, 0.05, '#111', 0, 0.05, 0.88);
+        box(hp, 0.14, 0.3, 0.1, D, -0.2, 0.48, 0.05);
+        box(hp, 0.14, 0.3, 0.1, D, 0.2, 0.48, 0.05);
+        for (const s of [-1, 1]) rig.eyes.push(box(hp, 0.12, 0.1, 0.04, '#ff3d00', s * 0.15, 0.2, 0.56));
+        if (k === 0) head = hp;
+      }
+      rig.height = 3.0;
+      break;
+    }
+    case 'archangel': {
+      const A = '#cfd8dc', G = '#ffd54f';
+      const foot = [0.46, 0.2, 0.58, G, 0.05];
+      leg(r, L, 0.42, 1.2, 0.42, '#b0bec5', -0.28, 1.25, 0, 0, foot);
+      leg(r, L, 0.42, 1.2, 0.42, '#b0bec5', 0.28, 1.25, 0, Math.PI, foot);
+      box(r, 1.3, 1.3, 0.8, A, 0, 1.95, 0);
+      box(r, 0.9, 0.6, 0.06, G, 0, 2.1, 0.42);
+      box(r, 1.38, 0.4, 0.86, G, 0, 1.25, 0);
+      for (const s of [-1, 1]) {
+        box(r, 0.5, 0.35, 0.62, G, s * 0.82, 2.55, 0);
+        box(r, 0.36, 1.0, 0.4, '#b0bec5', s * 0.85, 1.95, 0.05);
+      }
+      box(r, 0.12, 2.3, 0.3, '#b3e5fc', 0.95, 2.6, 0.45);         // sword blade
+      box(r, 0.6, 0.12, 0.2, G, 0.95, 1.45, 0.45);
+      box(r, 0.14, 0.4, 0.14, '#6d4c41', 0.95, 1.22, 0.45);
+      head = pivot(r, 0, 2.6, 0);
+      box(head, 0.85, 0.85, 0.85, '#eceff1', 0, 0.45, 0);
+      box(head, 0.62, 0.3, 0.05, '#263238', 0, 0.45, 0.43);
+      eyes(rig, head, 0.14, 0.47, 0.46, 0.1, '#40c4ff', false);
+      box(head, 0.15, 0.4, 0.75, '#e53935', 0, 1.0, -0.1);
+      halo(head, 1.4);
+      for (const s of [-1, 1]) {
+        const w = pivot(r, s * 0.5, 2.4, -0.45);
+        w.rotation.y = s * 0.3;
+        box(w, 2.4, 0.9, 0.12, '#ffffff', s * 1.2, 0.2, 0);
+        box(w, 2.4, 0.12, 0.14, '#ffe082', s * 1.2, 0.68, 0);
+        box(w, 1.6, 0.5, 0.12, '#eceff1', s * 1.4, -0.45, 0);
+        w.userData.side = s;
+        w.userData.flap = true;
+        rig.wings.push(w);
+      }
+      rig.height = 4.4;
+      break;
+    }
+    case 'demonlord': {
+      const R = '#8e0000';
+      const foot = [0.66, 0.25, 0.82, '#111', 0.1];
+      leg(r, L, 0.55, 1.4, 0.6, '#3e0000', -0.45, 1.45, 0, 0, foot);
+      leg(r, L, 0.55, 1.4, 0.6, '#3e0000', 0.45, 1.45, 0, Math.PI, foot);
+      box(r, 1.8, 1.6, 1.1, R, 0, 2.3, 0);
+      box(r, 1.2, 0.9, 0.08, '#5d0000', 0, 2.1, 0.56);
+      box(r, 0.42, 0.42, 0.1, '#eeeeee', 0, 1.6, 0.57);
+      for (const s of [-1, 1]) {
+        box(r, 0.6, 0.5, 0.7, '#212121', s * 1.05, 3.05, 0);
+        box(r, 0.18, 0.6, 0.18, '#fafafa', s * 1.15, 3.55, 0).rotation.z = -s * 0.3;
+        box(r, 0.55, 1.4, 0.6, R, s * 1.2, 2.2, 0.1);
+        box(r, 0.6, 0.25, 0.65, '#212121', s * 1.2, 1.42, 0.15);
+      }
+      head = pivot(r, 0, 3.1, 0.1);
+      box(head, 1.1, 1.0, 1.0, R, 0, 0.5, 0);
+      box(head, 0.8, 0.25, 0.1, '#212121', 0, 0.15, 0.51);
+      for (let i = 0; i < 4; i++) box(head, 0.1, 0.12, 0.04, '#ffffff', -0.27 + i * 0.18, 0.25, 0.56);
+      eyes(rig, head, 0.25, 0.62, 0.51, 0.15, '#ffea00');
+      for (const s of [-1, 1]) {
+        box(head, 0.25, 0.8, 0.25, '#212121', s * 0.55, 1.2, 0).rotation.z = -s * 0.5;
+        box(head, 0.2, 0.5, 0.2, '#212121', s * 0.88, 1.62, 0).rotation.z = -s * 0.95;
+      }
+      box(head, 0.95, 0.3, 0.95, '#ff6d00', 0, 1.08, 0);
+      for (const s of [-1, 1]) {
+        const w = pivot(r, s * 0.6, 2.9, -0.55);
+        w.rotation.y = s * 0.3;
+        box(w, 3.0, 1.4, 0.1, '#2b0000', s * 1.5, 0.2, 0);
+        box(w, 3.0, 0.12, 0.16, '#111111', s * 1.5, 0.9, 0);
+        w.userData.side = s;
+        w.userData.flap = true;
+        rig.wings.push(w);
+      }
+      rig.tail = pivot(r, 0, 1.7, -0.6);
+      box(rig.tail, 0.25, 0.25, 1.6, R, 0, 0, -0.8);
+      box(rig.tail, 0.4, 0.4, 0.1, '#111', 0, 0, -1.65).rotation.z = Math.PI / 4;
+      rig.height = 5.2;
       break;
     }
   }

@@ -1,7 +1,7 @@
 // Static level: terrain, the player's base, animal pens and decorations.
 import * as THREE from 'three';
 import { ANIMALS, BASE, WORLD, PATH_HALF, PEN_HALF, ZONES, SLOT_POS, TREADMILL, SHOP_PAD } from './config.js';
-import { mulberry32, cellTexture, canvasTexture, box, mat, createNest, Label } from './models.js';
+import { mulberry32, cellTexture, canvasTexture, box, boxGeo, mat, createNest, Label } from './models.js';
 
 // Collects lots of static boxes into a single InstancedMesh (one draw call).
 class StaticBoxes {
@@ -130,9 +130,13 @@ export function buildWorld(scene) {
   flatPlane(scene, 260, 680, 0, -250, 0, groundMat(['#5cbf3a', '#62c840', '#57b636', '#69cc47'], 'rgba(0,0,0,0.07)', 260, 680, 3));
   flatPlane(scene, 260, 105, 0, -292.5, 0.01, groundMat(['#3f9a37', '#47a33d', '#3b9133', '#4caa40'], 'rgba(0,0,0,0.08)', 260, 105, 4));
   flatPlane(scene, 260, 70, 0, -380, 0.012, groundMat(['#f1d18a', '#ebc87c', '#f5d898', '#e6c174'], 'rgba(120,80,20,0.08)', 260, 70, 5));
-  flatPlane(scene, 260, 185, 0, -507.5, 0.014, groundMat(['#3a3236', '#433a3e', '#352d31', '#4a3f42'], 'rgba(0,0,0,0.15)', 260, 185, 6));
+  flatPlane(scene, 260, 90, 0, -460, 0.014, groundMat(['#3a3236', '#433a3e', '#352d31', '#4a3f42'], 'rgba(0,0,0,0.15)', 260, 90, 6));
+  // heaven (left) and hell (right)
+  flatPlane(scene, 130, 300, -65, -655, 0.014, groundMat(['#ffffff', '#f3f6ff', '#fff8e1', '#eef3ff'], 'rgba(120,140,200,0.12)', 130, 300, 11));
+  flatPlane(scene, 130, 300, 65, -655, 0.014, groundMat(['#3b0a0a', '#4a0e0e', '#2d0707', '#571212'], 'rgba(0,0,0,0.25)', 130, 300, 12));
   // path to the pens
-  flatPlane(scene, PATH_HALF * 2, 488, 0, -242, 0.02, groundMat(['#d9b77a', '#cfab6b', '#e0c088', '#d4b072'], 'rgba(90,60,20,0.18)', PATH_HALF * 2, 488, 8, 1.25));
+  flatPlane(scene, PATH_HALF * 2, 507, 0, -251.5, 0.02, groundMat(['#d9b77a', '#cfab6b', '#e0c088', '#d4b072'], 'rgba(90,60,20,0.18)', PATH_HALF * 2, 507, 8, 1.25));
+  flatPlane(scene, PATH_HALF * 2, 262, 0, -636, 0.021, groundMat(['#fff8e1', '#ffecb3', '#fffde7', '#ffe082'], 'rgba(160,110,0,0.25)', PATH_HALF * 2, 262, 13, 1.25));
   for (let z = 2; z > WORLD.minZ; z -= 2.5) {
     sb.add(0.5, 0.18, 2.5, -PATH_HALF - 0.25, 0.09, z - 1.25, '#8b9a8f', { jitter: 0.1 });
     sb.add(0.5, 0.18, 2.5, PATH_HALF + 0.25, 0.09, z - 1.25, '#8b9a8f', { jitter: 0.1 });
@@ -311,9 +315,10 @@ export function buildWorld(scene) {
     const zone = zoneAt(a.z);
     const cx = a.side * (PATH_HALF + 2 + PEN_HALF), cz = a.z;
     const inner = a.side * (PATH_HALF + 2), outer = a.side * (PATH_HALF + 2 + PEN_HALF * 2);
-    const fc = { farm: '#9a6534', forest: '#5d4037', desert: '#c8a16a', volcano: '#2f2b33' }[zone.id];
-    const rc = { farm: '#b77a42', forest: '#795548', desert: '#dcbb87', volcano: '#4a4450' }[zone.id];
-    const floor = { farm: '#c9a965', forest: '#7b6a3a', desert: '#e2bd78', volcano: '#5b2a22' }[zone.id];
+    const style = a.realm || zone.id;
+    const fc = { farm: '#9a6534', forest: '#5d4037', desert: '#c8a16a', volcano: '#2f2b33', heaven: '#fff3c4', hell: '#2b0b0b' }[style];
+    const rc = { farm: '#b77a42', forest: '#795548', desert: '#dcbb87', volcano: '#4a4450', heaven: '#ffd54f', hell: '#8b1a1a' }[style];
+    const floor = { farm: '#c9a965', forest: '#7b6a3a', desert: '#e2bd78', volcano: '#5b2a22', heaven: '#fffde7', hell: '#3d0b0b' }[style];
     flatPlane(scene, PEN_HALF * 2 - 0.4, PEN_HALF * 2 - 0.4, cx, cz, 0.025, groundMat([floor, floor, floor], 'rgba(0,0,0,0.08)', 18, 18, 20 + i));
     fence(sb, outer, cz - PEN_HALF, outer, cz + PEN_HALF, fc, rc);
     fence(sb, inner, cz - PEN_HALF, outer, cz - PEN_HALF, fc, rc);
@@ -338,9 +343,9 @@ export function buildWorld(scene) {
 
   // ---------- Scenery along the path ----------
   const nearPen = (x, z) => pens.some(p => Math.abs(x - p.center.x) < PEN_HALF + 3 && Math.abs(z - p.center.z) < PEN_HALF + 3);
-  const scatter = (count, z0, z1, fn, xMin = 27, xMax = 70) => {
+  const scatter = (count, z0, z1, fn, xMin = 27, xMax = 70, onlySide = 0) => {
     for (let k = 0; k < count; k++) {
-      const z = R(z1, z0), side = rnd() < 0.5 ? -1 : 1, x = side * R(xMin, xMax);
+      const z = R(z1, z0), side = onlySide || (rnd() < 0.5 ? -1 : 1), x = side * R(xMin, xMax);
       if (Math.abs(x) < PATH_HALF + 2 || nearPen(x, z)) continue;
       if (z > -3 && Math.abs(x) < 46) continue;
       fn(x, z);
@@ -367,13 +372,13 @@ export function buildWorld(scene) {
   scatter(25, -347, -413, (x, z) => sb.add(R(1, 2.5), R(0.8, 1.8), R(1, 2.5), x, 0.5, z, '#b88a55', { collide: true, jitter: 0.1 }), 10, 44);
   scatter(12, -347, -413, (x, z) => { sb.add(2.2, 0.3, 0.3, x, 0.15, z, '#f5f0e1'); sb.add(0.3, 0.3, 1.2, x - 0.9, 0.15, z, '#f5f0e1'); sb.add(0.3, 0.3, 1.2, x + 0.9, 0.15, z, '#f5f0e1'); }, 10, 44);
   // volcano: dark rocks and lava
-  for (let z = -415; z > -600; z -= 7) {
+  for (let z = -415; z > -505; z -= 7) {
     for (const s of [-1, 1]) {
       const h = R(8, 16);
       sb.add(R(6, 10), h, 7.2, s * R(48, 54), h / 2, z - 3.5, '#2b2326', { jitter: 0.1 });
     }
   }
-  for (let i = 0; i < 6; i++) sb.add(60 - i * 9, 6, 60 - i * 9, 0, 3 + i * 6, -560, i > 3 ? '#4a1d14' : '#2b2326', { jitter: 0.04 });
+  for (let i = 0; i < 6; i++) sb.add(60 - i * 9, 6, 60 - i * 9, 100, 3 + i * 6, -470, i > 3 ? '#4a1d14' : '#2b2326', { jitter: 0.04 });
   scatter(30, -418, -482, (x, z) => sb.add(R(1, 3), R(0.8, 2.5), R(1, 3), x, 0.6, z, '#3b3236', { collide: true, jitter: 0.12 }), 10, 44);
   const lavaMat = new THREE.MeshBasicMaterial({ color: '#ff6d00' });
   animated.lava.push(lavaMat);
@@ -383,9 +388,57 @@ export function buildWorld(scene) {
     if (nearPen(x, z)) continue;
     flatPlane(scene, R(4, 9), R(4, 9), x, z, 0.05, lavaMat);
   }
-  flatPlane(scene, 30, 12, 0, -500, 0.05, lavaMat);
+
+  // ---------- Heaven & hell ----------
+  // gate between the volcano and the celestial realm
+  for (const s of [-1, 1]) {
+    const c = s < 0 ? '#fffdf5' : '#3a0d0d', cap = s < 0 ? '#ffd54f' : '#ff3d00';
+    sb.add(2, 9, 2, s * 7.5, 4.5, -505, c, { collide: true });
+    sb.add(2.6, 0.6, 2.6, s * 7.5, 9.3, -505, cap, { jitter: 0 });
+    sb.add(9, 1.4, 1.6, s * 4, 10, -505, c, { jitter: 0 });
+  }
+  const gateSign = new Label({ w: 640, h: 128, worldH: 2.2, bg: 'rgba(60,20,90,0.85)' });
+  gateSign.set([{ t: 'НЕБЕСА И ПРЕИСПОДНЯЯ', c: '#ffe57f', s: 56 }]);
+  gateSign.sprite.position.set(0, 12.5, -505);
+  scene.add(gateSign.sprite);
+  for (let z = -505; z > -770; z -= 8) {
+    const hh = R(10, 18), dh = R(10, 18);
+    sb.add(R(8, 12), hh, 8.2, -R(48, 54), hh / 2 - 3, z - 4, '#ffffff', { jitter: 0.05 });     // cloud walls
+    sb.add(R(6, 10), dh, 8.2, R(48, 54), dh / 2, z - 4, '#2a0a0a', { jitter: 0.1 });           // hell cliffs
+  }
+  // heaven: golden columns and cloud puffs
+  scatter(26, -508, -755, (x, z) => {
+    const h = R(4, 8);
+    sb.add(1.2, h, 1.2, x, h / 2, z, '#fffdf5', { collide: true, jitter: 0.03 });
+    sb.add(1.7, 0.4, 1.7, x, h + 0.2, z, '#ffd54f', { jitter: 0 });
+    sb.add(1.7, 0.4, 1.7, x, 0.2, z, '#ffd54f', { jitter: 0 });
+  }, 12, 44, -1);
+  scatter(40, -508, -755, (x, z) => {
+    sb.add(R(2, 4), R(0.8, 1.6), R(2, 3.5), x, 0.5, z, '#ffffff', { jitter: 0.04 });
+  }, 10, 46, -1);
+  // hell: obsidian spikes, lava and fire
+  scatter(30, -508, -755, (x, z) => {
+    const h = R(2.5, 6);
+    sb.add(1.4, h * 0.5, 1.4, x, h * 0.25, z, '#1a1012', { collide: true, jitter: 0.1 });
+    sb.add(0.8, h * 0.35, 0.8, x, h * 0.5 + h * 0.17, z, '#2b1418', { jitter: 0.1 });
+    sb.add(0.35, h * 0.25, 0.35, x, h * 0.85 + h * 0.12, z, '#3d1a1f', { jitter: 0.1 });
+  }, 12, 44, 1);
+  const fireMat = new THREE.MeshBasicMaterial({ color: '#ff9100' });
+  animated.fires = [];
+  for (let i = 0; i < 16; i++) {
+    const x = R(10, 44), z = R(-510, -752);
+    if (nearPen(x, z)) continue;
+    if (i % 2) { flatPlane(scene, R(4, 8), R(4, 8), x, z, 0.05, lavaMat); continue; }
+    const f = new THREE.Mesh(boxGeo(0.7, 1.4, 0.7), fireMat);
+    f.position.set(x, 0.7, z);
+    f.userData.phase = R(0, 6);
+    scene.add(f);
+    animated.fires.push(f);
+    sb.add(1.4, 0.3, 1.4, x, 0.15, z, '#1a1012');
+  }
+
   // lamps along the path
-  for (let z = -20; z > -470; z -= 22) {
+  for (let z = -20; z > -750; z -= 22) {
     const side = Math.round(z / 22) % 2 ? 1 : -1;
     if (pens.some(p => p.def.side === side && Math.abs(p.center.z - z) < PEN_HALF + 2)) continue;
     lamp(sb, scene, side * (PATH_HALF + 1.2), z);
@@ -395,8 +448,8 @@ export function buildWorld(scene) {
 
   // ---------- Clouds ----------
   const cloudBoxes = new StaticBoxes(9);
-  for (let i = 0; i < 26; i++) {
-    const x = R(-120, 120), z = R(-520, 80), y = R(38, 55);
+  for (let i = 0; i < 34; i++) {
+    const x = R(-120, 120), z = R(-780, 80), y = R(38, 55);
     const n = 2 + Math.floor(rnd() * 3);
     for (let k = 0; k < n; k++) cloudBoxes.add(R(6, 12), R(2, 3.5), R(5, 9), x + k * R(3, 6), y + R(-0.5, 0.8), z + R(-2, 2), '#ffffff', { jitter: 0 });
   }

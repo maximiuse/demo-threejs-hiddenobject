@@ -1,5 +1,5 @@
 // HTML overlay: HUD, toasts, shop / pets / pause panels.
-import { ANIMALS, RARITIES, UPG, SKINS } from './config.js';
+import { ANIMALS, RARITIES, UPG, SKINS, TRAILS } from './config.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,6 +30,8 @@ export class UI {
     $('btnPets').addEventListener('click', () => this.toggle('pets'));
     $('btnPause').addEventListener('click', () => this.toggle('pause'));
     $('modalClose').addEventListener('click', () => this.close());
+    this.el.replace = $('btnReplace');
+    this.el.replace.addEventListener('click', () => this.g.action('replace'));
     this.el.modal.addEventListener('pointerdown', (e) => { if (e.target === this.el.modal) this.close(); });
     this.el.body.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-act]');
@@ -96,6 +98,8 @@ export class UI {
     this.setText('training', this.el.training, hud.training ? `+${hud.training.toFixed(1)}/с` : '');
     this.setText('hint', this.el.hint, hud.hint || '');
     this.el.hint.classList.toggle('danger', !!hud.danger);
+    this.setText('replace', this.el.replace, hud.replace || '');
+    this.el.replace.classList.toggle('hidden', !hud.replace);
     const v = hud.vignette.toFixed(2);
     if (this.last.vig !== v) { this.last.vig = v; this.el.vignette.style.opacity = v; }
     if (this.modal === 'shop' || this.modal === 'pets') {
@@ -112,8 +116,21 @@ export class UI {
       this.el.title.textContent = '🛒 Магазин';
       const tabs = `<div class="tabs">
         <button class="tab ${this.shopTab === 'upgrades' ? 'on' : ''}" data-act="tab" data-arg="upgrades">⬆️ Улучшения</button>
-        <button class="tab ${this.shopTab === 'skins' ? 'on' : ''}" data-act="tab" data-arg="skins">👕 Скины</button></div>`;
-      if (this.shopTab === 'skins') {
+        <button class="tab ${this.shopTab === 'skins' ? 'on' : ''}" data-act="tab" data-arg="skins">👕 Скины</button>
+        <button class="tab ${this.shopTab === 'trails' ? 'on' : ''}" data-act="tab" data-arg="trails">✨ Следы</button></div>`;
+      if (this.shopTab === 'trails') {
+        body.innerHTML = tabs + '<div class="skins">' + TRAILS.map((k) => {
+          const owned = s.trails[k.id], worn = s.trail === k.id;
+          const btn = worn ? '<button class="buy" disabled>Надето ✓</button>'
+            : owned ? `<button class="buy blue" data-act="trail" data-arg="${k.id}">Надеть</button>`
+              : `<button class="buy" data-act="trail" data-arg="${k.id}" ${s.money < k.price ? 'disabled' : ''}>$${fmt(k.price)}</button>`;
+          const bg = k.rainbow ? 'linear-gradient(90deg,#ff1744,#ff9100,#ffea00,#00e676,#2979ff,#d500f9)'
+            : k.colors ? `linear-gradient(90deg,${k.colors.length > 1 ? k.colors.join(',') : `${k.colors[0]},${k.colors[0]}`},transparent)` : 'none';
+          return `<div class="skin ${worn ? 'worn' : ''}">
+            <div class="swatch ${k.rainbow ? 'rainbow' : ''}" style="background:${bg}">${k.colors || k.rainbow ? '' : '🚫'}</div>
+            <div class="title">${k.name}</div>${btn}</div>`;
+        }).join('') + '</div>';
+      } else if (this.shopTab === 'skins') {
         const thumbs = g.skinThumbs();
         body.innerHTML = tabs + '<div class="skins">' + SKINS.map((k) => {
           const owned = s.skins[k.id], worn = s.skin === k.id;
@@ -164,7 +181,8 @@ export class UI {
         const a = ANIMALS[p.a];
         if (p.r < 0) {
           html += `<div class="card"><div class="big-ico">🥚</div><div class="info">
-            <div class="title">Яйцо: ${a.name}</div><div class="desc">Вылупится через ${Math.ceil(p.t)} с</div></div></div>`;
+            <div class="title">Яйцо: ${a.emoji} ${a.name}</div><div class="desc">Вылупится через ${Math.ceil(p.t)} с · ~$${fmt(a.income)}/с</div></div>
+            <div class="btns"><button class="buy danger" data-act="discard" data-arg="${i}">Выкинуть</button></div></div>`;
         } else {
           const r = RARITIES[p.r];
           html += `<div class="card" style="border-color:${r.color}55"><div class="big-ico">${a.emoji}</div><div class="info">
@@ -174,6 +192,7 @@ export class UI {
         }
       }
       if (!any) html += '<div class="empty">Пока пусто. Укради яйцо и принеси его на базу!</div>';
+      else html += '<div class="help">💡 Чтобы освободить слот: питомца можно продать, а яйцо — выкинуть. Если база полна, а ты несёшь яйцо, внизу появится кнопка «♻️ Заменить» — она уберёт самое слабое.</div>';
       const found = Object.keys(s.col).length;
       html += `<div class="section">📖 Коллекция ${found}/${ANIMALS.length * RARITIES.length}</div><div class="collection"><div></div>`;
       html += RARITIES.map(r => `<div class="hdr" style="color:${r.color}">${r.name}</div>`).join('');
@@ -242,7 +261,7 @@ export class UI {
         <button class="buy ${s.god ? '' : 'blue'}" data-act="adm-god">🛡 Неуловимость: ${on(s.god)}</button>
         <button class="buy ${s.forceLeg ? '' : 'blue'}" data-act="adm-leg">⭐ Всегда легендарные: ${on(s.forceLeg)}</button>
         <button class="buy blue" data-act="adm-hatch">🐣 Вылупить все яйца сейчас</button>
-        <button class="buy blue" data-act="adm-skins">👕 Открыть все скины</button>
+        <button class="buy blue" data-act="adm-skins">👕 Открыть все скины и следы</button>
         <button class="buy danger" data-act="adm-logout">🚪 Выйти из админки</button>
       </div>`;
   }
