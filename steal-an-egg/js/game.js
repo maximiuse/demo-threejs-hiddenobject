@@ -2,9 +2,10 @@
 import * as THREE from 'three';
 import {
   ANIMALS, RARITIES, UPG, SPEED_SCALE, START_SPEED, MAX_SPEED, BASE_EDGE, WORLD,
-  SLOT_POS, TREADMILL, SHOP_PAD, SPAWN, SKINS, ADMIN_CODE,
+  SLOT_POS, TREADMILL, SHOP_PAD, SPAWN, SKINS, TRAILS, ADMIN_CODE,
 } from './config.js';
 import { createPlayer, renderSkinThumbs } from './skins.js';
+import { Trail } from './trail.js';
 import { createAnimal, createEgg, animateRig, setEyesClosed, Label, boxGeo, mat } from './models.js';
 import { buildWorld, zoneAt } from './world.js';
 import { Input } from './input.js';
@@ -57,7 +58,7 @@ function defaultState() {
   return {
     money: 0, speed: START_SPEED, speedBuys: 0, tread: 1, slots: UPG.slots.start,
     pets: new Array(UPG.slots.max).fill(null), col: {}, sound: true, steals: 0, t: Date.now(),
-    skin: 'classic', skins: { classic: true },
+    skin: 'classic', skins: { classic: true }, trail: 'none', trails: { none: true },
     admin: false, god: false, forceLeg: false,
   };
 }
@@ -73,6 +74,8 @@ function loadState() {
     });
     st.skins = Object.assign({ classic: true }, st.skins);
     if (!SKINS.some(k => k.id === st.skin)) st.skin = 'classic';
+    st.trails = Object.assign({ none: true }, st.trails);
+    if (!TRAILS.some(k => k.id === st.trail)) st.trail = 'none';
     return st;
   } catch {
     return null;
@@ -316,6 +319,8 @@ class Game {
     this.rig = createPlayer(this.state.skin);
     this.scene.add(this.rig.root);
     if (new URLSearchParams(location.search).get('admin') === ADMIN_CODE) this.state.admin = true;
+    this.trail = new Trail(this.scene);
+    this.trail.setStyle(TRAILS.find(t => t.id === this.state.trail));
     this.p = {
       pos: new THREE.Vector3(SPAWN.x, 0, SPAWN.z), vy: 0, grounded: true, facing: Math.PI,
       stun: 0, knock: new THREE.Vector3(), carrying: -1, carryMesh: null, phase: 0, moveAmt: 0,
@@ -485,6 +490,36 @@ class Game {
         ui.toast(`Продано за $${fmt(price)}`, '', 1500);
         break;
       }
+      case 'discard': {
+        const i = Number(arg), p = s.pets[i];
+        if (!p || p.r >= 0) return;
+        s.pets[i] = null;
+        this.syncSlot(i);
+        this.fullWarned = false;
+        sfx.error();
+        ui.toast(`🗑 Яйцо (${ANIMALS[p.a].name}) выброшено`, '', 1500);
+        break;
+      }
+      case 'replace': {
+        const i = this.weakestSlot();
+        if (i < 0 || this.p.carrying < 0) return;
+        const p = s.pets[i];
+        if (p.r >= 0) this.action('sell', i);
+        else this.action('discard', i);
+        return;
+      }
+      case 'trail': {
+        const k = TRAILS.find(x => x.id === arg);
+        if (!k) return;
+        if (!s.trails[k.id]) {
+          if (!pay(k.price)) return;
+          s.trails[k.id] = true;
+          ui.toast(`✨ Новый след: ${k.name}!`, 'gold', 2000);
+        }
+        s.trail = k.id;
+        this.trail.setStyle(k);
+        break;
+      }
       case 'resume': ui.close(); return;
       case 'sound':
         s.sound = !s.sound;
@@ -554,6 +589,7 @@ class Game {
       case 'adm-skins':
         if (!s.admin) return;
         for (const k of SKINS) s.skins[k.id] = true;
+        for (const k of TRAILS) s.trails[k.id] = true;
         break;
       case 'reset':
         if (!this.resetArmed) { this.resetArmed = true; break; }
@@ -586,6 +622,20 @@ class Game {
   }
 
   // ---------- slots ----------
+  // The slot whose content earns the least (an egg counts as a common pet of its kind).
+  slotValue(p) { return ANIMALS[p.a].income * (p.r >= 0 ? RARITIES[p.r].mult : 1); }
+
+  weakestSlot() {
+    let best = -1, bestV = Infinity;
+    for (let i = 0; i < this.state.slots; i++) {
+      const p = this.state.pets[i];
+      if (!p || this.slotVis[i].pending) continue;
+      const v = this.slotValue(p);
+      if (v < bestV) { bestV = v; best = i; }
+    }
+    return best;
+  }
+
   findFreeSlot() {
     for (let i = 0; i < this.state.slots; i++) if (!this.state.pets[i]) return i;
     return -1;
@@ -699,7 +749,7 @@ class Game {
     const i = this.findFreeSlot();
     if (i < 0) {
       if (!this.fullWarned) {
-        this.ui.toast('База заполнена! Продай питомца (🐣) или купи слот (🛒)', 'bad', 3500);
+        this.ui.toast('База заполнена! Нажми «♻️ Заменить», продай питомца (🐣) или купи слот (🛒)', 'bad', 3500);
         sfx.error();
         this.fullWarned = true;
       }
@@ -911,6 +961,7 @@ class Game {
     rig.root.position.copy(p.pos);
     rig.root.rotation.y = p.facing;
     if (p.carryMesh) p.carryMesh.rotation.z = Math.sin(p.phase) * 0.12 * p.moveAmt;
+    this.trail.update(this.time, tmpHead.set(p.pos.x, p.pos.y + 1.0 + rig.body.position.y, p.pos.z), this.camera.position);
   }
 
   updateSlots(dt) {
@@ -988,8 +1039,11 @@ class Game {
     // sky and fog follow the zone the camera is in
     const zone = zoneAt(this.camera.position.z);
     const k = Math.min(1, dt * 1.5);
-    this.sky.lerp(tmpColor.set(zone.sky), k);
-    this.scene.fog.color.lerp(tmpColor.set(zone.fog), k);
+    // in the celestial realm the sky blends from heaven (left) to hell (right)
+    const hell = zone.hellSky ? clamp((this.cam.target.x + 6) / 12, 0, 1) : 0;
+    this.sky.lerp(tmpColor.set(zone.sky).lerp(tmpColor2.set(zone.hellSky || zone.sky), hell), k);
+    this.scene.fog.color.lerp(tmpColor.set(zone.fog).lerp(tmpColor2.set(zone.hellFog || zone.fog), hell), k);
+    if (w.fires) for (const fl of w.fires) fl.scale.set(1, 0.7 + Math.abs(Math.sin(t * 7 + fl.userData.phase)) * 0.6, 1);
     const near = zone.id === 'volcano' ? 40 : 70, far = zone.id === 'volcano' ? 170 : 220;
     this.scene.fog.near += (near - this.scene.fog.near) * k;
     this.scene.fog.far += (far - this.scene.fog.far) * k;
@@ -1013,7 +1067,7 @@ class Game {
     if (p.carrying >= 0) {
       hint = `🏃 Беги на базу! Осталось ${Math.max(0, Math.ceil(BASE_EDGE - p.pos.z))} м`;
       danger = nearest < Infinity;
-      if (this.inBase(p.pos)) { hint = 'База заполнена — продай питомца или купи слот'; danger = false; }
+      if (this.inBase(p.pos)) { hint = 'База заполнена — замени слабое яйцо или купи слот'; danger = false; }
     } else if (p.stun > 0) {
       hint = '😵 Ой!';
     } else if (p.training) {
@@ -1021,8 +1075,16 @@ class Game {
     } else if (this.state.steals === 0) {
       hint = this.inBase(p.pos) ? '⬆ Иди по тропинке к курице и укради её яйцо' : '🥚 Подойди к гнезду и забери яйцо';
     }
+    let replace = '';
+    if (p.carrying >= 0 && this.inBase(p.pos) && this.findFreeSlot() < 0) {
+      const w = this.weakestSlot();
+      if (w >= 0) {
+        const q = this.state.pets[w], a = ANIMALS[q.a];
+        replace = q.r >= 0 ? `♻️ Заменить: ${a.emoji} ${a.name} (продать $${fmt(this.sellPrice(q))})` : `♻️ Заменить: яйцо ${a.emoji} ${a.name}`;
+      }
+    }
     return {
-      hint, danger, vignette, income: this.income,
+      hint, danger, vignette, income: this.income, replace,
       training: p.training ? UPG.treadmill.gain(this.state.tread) : 0,
     };
   }
@@ -1053,6 +1115,8 @@ class Game {
 }
 
 const tmpColor = new THREE.Color();
+const tmpColor2 = new THREE.Color();
+const tmpHead = new THREE.Vector3();
 const tmpFocus = new THREE.Vector3(0, 0, -8);
 
 async function boot() {

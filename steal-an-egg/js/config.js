@@ -2,12 +2,12 @@
 
 export const SPEED_SCALE = 0.5;     // displayed speed -> world units per second
 export const START_SPEED = 16;
-export const MAX_SPEED = 400;
+export const MAX_SPEED = 500;
 
 // Everything with z > BASE_EDGE is the player's safe territory: animals can't cross it.
 export const BASE_EDGE = 0;
 export const BASE = { minX: -24, maxX: 24, minZ: 0, maxZ: 36 };
-export const WORLD = { minX: -44, maxX: 44, minZ: -484, maxZ: 35 };
+export const WORLD = { minX: -44, maxX: 44, minZ: -760, maxZ: 35 };
 export const PATH_HALF = 5;
 export const PEN_HALF = 9;
 export const SPAWN = { x: 0, z: 9 };
@@ -17,7 +17,9 @@ export const ZONES = [
   { id: 'farm', from: 60, to: -240, sky: '#9ad8ff', fog: '#bfe6ff' },
   { id: 'forest', from: -240, to: -345, sky: '#86c9e8', fog: '#a9d8c2' },
   { id: 'desert', from: -345, to: -415, sky: '#ffd99a', fog: '#f5d9a8' },
-  { id: 'volcano', from: -415, to: -600, sky: '#5b2b2b', fog: '#6e3328' },
+  { id: 'volcano', from: -415, to: -505, sky: '#5b2b2b', fog: '#6e3328' },
+  // Heaven on the left of the path (x < 0), hell on the right (x > 0).
+  { id: 'celestial', from: -505, to: -900, sky: '#cfe6ff', fog: '#efe8ff', hellSky: '#5a1414', hellFog: '#3d0f0f' },
 ];
 
 export const ANIMALS = [
@@ -31,6 +33,12 @@ export const ANIMALS = [
   { id: 'bear', name: 'Медведь', emoji: '🐻', speed: 88, income: 120, z: -316, side: 1, scale: 1.15, egg: '#c8a27c', spot: '#6d4c41', eggSize: 1.05, hatch: 26 },
   { id: 'dino', name: 'Динозавр', emoji: '🦖', speed: 105, income: 250, z: -380, side: -1, scale: 1.45, egg: '#e8c99a', spot: '#8a5a2b', eggSize: 1.25, hatch: 32, sleeps: true },
   { id: 'dragon', name: 'Дракон', emoji: '🐉', speed: 125, income: 500, z: -450, side: 1, scale: 1.45, egg: '#ff7043', spot: '#7f1d1d', eggSize: 1.3, hatch: 40 },
+  { id: 'cherub', name: 'Херувим', emoji: '👼', speed: 150, income: 1000, z: -535, side: -1, scale: 1.2, egg: '#fffde7', spot: '#ffd54f', eggSize: 1.1, hatch: 45, realm: 'heaven' },
+  { id: 'imp', name: 'Бес', emoji: '😈', speed: 175, income: 2000, z: -575, side: 1, scale: 1.25, egg: '#c62828', spot: '#1a1a1a', eggSize: 1.1, hatch: 50, realm: 'hell' },
+  { id: 'seraph', name: 'Серафим', emoji: '😇', speed: 205, income: 4000, z: -615, side: -1, scale: 1.3, egg: '#ffffff', spot: '#90caf9', eggSize: 1.2, hatch: 55, realm: 'heaven' },
+  { id: 'hellhound', name: 'Адский пёс', emoji: '🐕', speed: 240, income: 8000, z: -655, side: 1, scale: 1.35, egg: '#263238', spot: '#ff6d00', eggSize: 1.2, hatch: 60, realm: 'hell' },
+  { id: 'archangel', name: 'Архангел', emoji: '⚔️', speed: 280, income: 16000, z: -695, side: -1, scale: 1.4, egg: '#fff8e1', spot: '#ffc107', eggSize: 1.3, hatch: 70, realm: 'heaven' },
+  { id: 'demonlord', name: 'Повелитель демонов', emoji: '👹', speed: 330, income: 35000, z: -735, side: 1, scale: 1.5, egg: '#3d0000', spot: '#ff1744', eggSize: 1.4, hatch: 80, realm: 'hell' },
 ];
 
 export const RARITIES = [
@@ -41,7 +49,7 @@ export const RARITIES = [
 ];
 
 export const UPG = {
-  speed: { step: 2, cost: n => Math.round(10 * Math.pow(1.17, n)) },          // n = purchases made
+  speed: { step: 2, cost: n => Math.round(10 * Math.pow(1.12, n)) },          // n = purchases made
   treadmill: { max: 10, gain: lvl => 0.4 * lvl, cost: lvl => Math.round(60 * Math.pow(2.6, lvl - 1)) },
   slots: { start: 4, max: 12, cost: s => Math.round(40 * Math.pow(2.8, s - 4)) },
   sellMult: 20,
@@ -71,3 +79,18 @@ export const SKINS = [
 // Code that unlocks the admin panel (Pause → Админ, or ?admin=CODE in the URL).
 // The game is fully client-side, so this only keeps casual players out.
 export const ADMIN_CODE = 'egg2026';
+
+// Trails behind the player. colors: gradient from the player to the tail end.
+export const TRAILS = [
+  { id: 'none', name: 'Без следа', price: 0 },
+  { id: 'white', name: 'Белый', price: 200, colors: ['#ffffff'] },
+  { id: 'red', name: 'Красный', price: 500, colors: ['#ff1744'] },
+  { id: 'blue', name: 'Синий', price: 1000, colors: ['#2979ff'] },
+  { id: 'toxic', name: 'Ядовитый', price: 2500, colors: ['#76ff03', '#00e676'] },
+  { id: 'pink', name: 'Неон', price: 6000, colors: ['#ff4081', '#e040fb'] },
+  { id: 'gold', name: 'Золотой', price: 15000, colors: ['#fff176', '#ffc400', '#ff8f00'] },
+  { id: 'fire', name: 'Огненный', price: 40000, colors: ['#ffea00', '#ff6d00', '#d50000'] },
+  { id: 'ice', name: 'Ледяной', price: 80000, colors: ['#ffffff', '#80d8ff', '#2962ff'] },
+  { id: 'galaxy', name: 'Галактика', price: 150000, colors: ['#ff80ab', '#7c4dff', '#1a237e'] },
+  { id: 'rainbow', name: 'Радужный', price: 300000, rainbow: true },
+];
