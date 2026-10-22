@@ -2,9 +2,10 @@
 import * as THREE from 'three';
 import {
   ANIMALS, RARITIES, UPG, SPEED_SCALE, START_SPEED, MAX_SPEED, BASE_EDGE, WORLD,
-  SLOT_POS, TREADMILL, SHOP_PAD, SPAWN,
+  SLOT_POS, TREADMILL, SHOP_PAD, SPAWN, SKINS, ADMIN_CODE,
 } from './config.js';
-import { createPlayer, createAnimal, createEgg, animateRig, setEyesClosed, Label, boxGeo, mat } from './models.js';
+import { createPlayer, renderSkinThumbs } from './skins.js';
+import { createAnimal, createEgg, animateRig, setEyesClosed, Label, boxGeo, mat } from './models.js';
 import { buildWorld, zoneAt } from './world.js';
 import { Input } from './input.js';
 import { initAudio, setSound, sfx } from './audio.js';
@@ -56,6 +57,8 @@ function defaultState() {
   return {
     money: 0, speed: START_SPEED, speedBuys: 0, tread: 1, slots: UPG.slots.start,
     pets: new Array(UPG.slots.max).fill(null), col: {}, sound: true, steals: 0, t: Date.now(),
+    skin: 'classic', skins: { classic: true },
+    admin: false, god: false, forceLeg: false,
   };
 }
 
@@ -68,6 +71,8 @@ function loadState() {
       const p = st.pets[i];
       return p && ANIMALS[p.a] ? p : null;
     });
+    st.skins = Object.assign({ classic: true }, st.skins);
+    if (!SKINS.some(k => k.id === st.skin)) st.skin = 'classic';
     return st;
   } catch {
     return null;
@@ -210,7 +215,7 @@ class Animal {
         if (p.carrying !== this.idx || g.inBase(p.pos)) { this.state = 'return'; break; }
         speed = this.moveTo(p.pos, def.speed * SPEED_SCALE, dt);
         const d = Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z);
-        if (d < 0.9 + def.scale * 0.6 && p.pos.y < this.top) g.caught(this);
+        if (d < 0.9 + def.scale * 0.6 && p.pos.y < this.top && !g.state.god) g.caught(this);
         break;
       }
       case 'return': {
@@ -308,8 +313,9 @@ class Game {
     this.floaters = new Floaters(this.scene);
 
     // --- player ---
-    this.rig = createPlayer();
+    this.rig = createPlayer(this.state.skin);
     this.scene.add(this.rig.root);
+    if (new URLSearchParams(location.search).get('admin') === ADMIN_CODE) this.state.admin = true;
     this.p = {
       pos: new THREE.Vector3(SPAWN.x, 0, SPAWN.z), vy: 0, grounded: true, facing: Math.PI,
       stun: 0, knock: new THREE.Vector3(), carrying: -1, carryMesh: null, phase: 0, moveAmt: 0,
@@ -408,7 +414,7 @@ class Game {
   }
 
   onModal(name) {
-    this.paused = name === 'pause';
+    this.paused = name === 'pause' || name === 'admin';
     if (name !== 'pause') this.resetArmed = false;
   }
 
@@ -490,6 +496,65 @@ class Game {
         this.p.knock.set(0, 0, 0);
         ui.close();
         return;
+      case 'skin': {
+        const k = SKINS.find(x => x.id === arg);
+        if (!k) return;
+        if (!s.skins[k.id]) {
+          if (!pay(k.price)) return;
+          s.skins[k.id] = true;
+          ui.toast(`👕 Новый скин: ${k.name}!`, 'gold', 2000);
+        }
+        this.setSkin(k.id);
+        break;
+      }
+      case 'adm-login':
+        if (String(arg).trim() !== ADMIN_CODE) { sfx.error(); ui.toast('Неверный код', 'bad', 1500); return; }
+        s.admin = true;
+        sfx.buy();
+        break;
+      case 'adm-logout': s.admin = false; break;
+      case 'adm-money': {
+        if (!s.admin) return;
+        const v = parseFloat(arg);
+        if (Number.isFinite(v)) s.money = Math.max(0, v);
+        ui.bump('money');
+        break;
+      }
+      case 'adm-money-add':
+        if (!s.admin) return;
+        s.money += Number(arg) || 0;
+        ui.bump('money');
+        break;
+      case 'adm-speed': {
+        if (!s.admin) return;
+        const v = parseFloat(arg);
+        if (Number.isFinite(v)) s.speed = clamp(v, 1, MAX_SPEED);
+        ui.bump('speed');
+        this.updateSigns();
+        break;
+      }
+      case 'adm-tread':
+        if (!s.admin) return;
+        s.tread = clamp(s.tread + Number(arg), 1, UPG.treadmill.max);
+        this.updateTreadmillLabel();
+        break;
+      case 'adm-slots':
+        if (!s.admin) return;
+        s.slots = clamp(s.slots + Number(arg), 1, UPG.slots.max);
+        this.syncAllSlots();
+        this.recalcIncome();
+        break;
+      case 'adm-god': if (s.admin) s.god = !s.god; break;
+      case 'adm-leg': if (s.admin) s.forceLeg = !s.forceLeg; break;
+      case 'adm-hatch':
+        if (!s.admin) return;
+        for (let i = 0; i < s.slots; i++) if (s.pets[i] && s.pets[i].r < 0) s.pets[i].t = 0.05;
+        ui.close();
+        return;
+      case 'adm-skins':
+        if (!s.admin) return;
+        for (const k of SKINS) s.skins[k.id] = true;
+        break;
       case 'reset':
         if (!this.resetArmed) { this.resetArmed = true; break; }
         try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
@@ -498,6 +563,26 @@ class Game {
         return;
     }
     this.save();
+  }
+
+  setSkin(id) {
+    const old = this.rig;
+    this.rig = createPlayer(id);
+    this.state.skin = id;
+    this.scene.remove(old.root);
+    this.scene.add(this.rig.root);
+    this.rig.root.position.copy(this.p.pos);
+    this.rig.root.rotation.y = this.p.facing;
+    if (this.p.carryMesh) {
+      this.rig.root.add(this.p.carryMesh);
+      this.p.carryMesh.position.y = this.rig.carryY + this.p.carryMesh.userData.halfH;
+    }
+  }
+
+  // Shop pictures of the skins, rendered on first use.
+  skinThumbs() {
+    if (!this.thumbs) this.thumbs = renderSkinThumbs(this.renderer, SKINS.map(k => k.id));
+    return this.thumbs;
   }
 
   // ---------- slots ----------
@@ -559,7 +644,8 @@ class Game {
   hatch(i) {
     const s = this.state, p = s.pets[i], def = ANIMALS[p.a];
     let roll = Math.random(), r = 0;
-    for (; r < RARITIES.length - 1; r++) {
+    if (s.forceLeg) r = RARITIES.length - 1;
+    else for (; r < RARITIES.length - 1; r++) {
       if (roll < RARITIES[r].chance) break;
       roll -= RARITIES[r].chance;
     }
@@ -587,7 +673,7 @@ class Game {
     animal.eggPresent = false;
     animal.nestEgg.visible = false;
     const egg = createEgg(def);
-    egg.position.set(0, 2.92 + egg.userData.halfH, 0.25);
+    egg.position.set(0, this.rig.carryY + egg.userData.halfH, 0.25);
     this.rig.root.add(egg);
     p.carryMesh = egg;
     p.carrying = animal.idx;
@@ -818,6 +904,9 @@ class Game {
         a.rotation.z = 0;
       }
     });
+    for (const f of rig.flaps) f.rotation.z = f.userData.side * Math.sin(p.phase * 0.8) * (0.12 + 0.3 * p.moveAmt);
+    for (const pr of rig.spin) pr.rotation.z += dt * (8 + 30 * p.moveAmt);
+    if (rig.tail) rig.tail.rotation.y = Math.sin(p.phase) * 0.35 * p.moveAmt;
     rig.body.position.y = Math.abs(Math.sin(p.phase)) * 0.14 * p.moveAmt;
     rig.root.position.copy(p.pos);
     rig.root.rotation.y = p.facing;
@@ -952,7 +1041,9 @@ class Game {
       this.ui.update(dt, this.hud());
       this.saveT -= dt;
       if (this.saveT <= 0) { this.saveT = 5; this.save(); }
-    } else if (!this.started) {
+    } else if (this.started) {
+      this.ui.update(0, this.hud());
+    } else {
       for (const a of this.animals) a.update(dt);
       this.orbitCamera(dt);
     }

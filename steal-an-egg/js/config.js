@@ -55,3 +55,19 @@ for (let row = 0; row < 4; row++) {
 
 export const TREADMILL = { x: 15, z: 15, halfW: 1.3, halfL: 2.9 };
 export const SHOP_PAD = { x: 0, z: 27.5, r: 1.8 };
+
+// Player skins (cosmetic). Bought once in the shop, then can be worn any time.
+export const SKINS = [
+  { id: 'classic', name: 'Классика', price: 0 },
+  { id: 'girl', name: 'Девочка', price: 150 },
+  { id: 'kpop', name: 'K-pop девочка', price: 1500 },
+  { id: 'tungtung', name: 'Тунг Тунг Тунг Сахур', price: 5000, brainrot: true },
+  { id: 'tralalero', name: 'Тралалеро Тралала', price: 15000, brainrot: true },
+  { id: 'ballerina', name: 'Балерина Капучина', price: 40000, brainrot: true },
+  { id: 'chimpanzini', name: 'Шимпанзини Бананини', price: 100000, brainrot: true },
+  { id: 'bombardiro', name: 'Бомбардиро Крокодило', price: 250000, brainrot: true },
+];
+
+// Code that unlocks the admin panel (Pause → Админ, or ?admin=CODE in the URL).
+// The game is fully client-side, so this only keeps casual players out.
+export const ADMIN_CODE = 'egg2026';

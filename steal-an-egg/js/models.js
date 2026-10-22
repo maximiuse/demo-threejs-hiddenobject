@@ -36,7 +36,7 @@ export function box(parent, w, h, d, color, x = 0, y = 0, z = 0) {
   return m;
 }
 
-function pivot(parent, x, y, z) {
+export function pivot(parent, x, y, z) {
   const g = new THREE.Group();
   g.position.set(x, y, z);
   parent.add(g);
@@ -44,7 +44,7 @@ function pivot(parent, x, y, z) {
 }
 
 // A limb that swings around its top end. foot = [w, h, d, color, zOffset]
-function leg(parent, list, w, h, d, color, x, y, z, phase, foot) {
+export function leg(parent, list, w, h, d, color, x, y, z, phase, foot) {
   const p = pivot(parent, x, y, z);
   box(p, w, h, d, color, 0, -h / 2, 0);
   if (foot) box(p, foot[0], foot[1], foot[2], foot[3], 0, -h + foot[1] / 2, foot[4] || 0);
@@ -96,79 +96,6 @@ export function cellTexture(colors, line, cells = 4, size = 16, seed = 1) {
       }
     }
   });
-}
-
-function plaidTexture() {
-  return canvasTexture(32, 32, (ctx) => {
-    ctx.fillStyle = '#c62828'; ctx.fillRect(0, 0, 32, 32);
-    ctx.fillStyle = 'rgba(20,0,0,0.45)';
-    for (let i = 0; i < 32; i += 8) { ctx.fillRect(i, 0, 3, 32); ctx.fillRect(0, i, 32, 3); }
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    for (let i = 4; i < 32; i += 8) { ctx.fillRect(i, 0, 1, 32); ctx.fillRect(0, i, 32, 1); }
-  });
-}
-
-function faceTexture(scared) {
-  return canvasTexture(32, 32, (ctx) => {
-    ctx.fillStyle = '#f1c27d'; ctx.fillRect(0, 0, 32, 32);
-    ctx.fillStyle = '#1d1d22';
-    if (scared) {
-      ctx.fillRect(7, 9, 7, 7); ctx.fillRect(18, 9, 7, 7);           // wide eyes
-      ctx.fillStyle = '#fff'; ctx.fillRect(9, 11, 3, 3); ctx.fillRect(20, 11, 3, 3);
-      ctx.fillStyle = '#1d1d22'; ctx.fillRect(7, 5, 7, 2); ctx.fillRect(18, 5, 7, 2); // raised brows
-      ctx.fillStyle = '#5a1010'; ctx.fillRect(10, 19, 12, 9);         // screaming mouth
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(10, 19, 12, 2);
-      ctx.fillStyle = '#e57373'; ctx.fillRect(12, 25, 8, 3);
-    } else {
-      ctx.fillRect(8, 11, 5, 7); ctx.fillRect(19, 11, 5, 7);
-      ctx.fillStyle = '#fff'; ctx.fillRect(9, 12, 2, 2); ctx.fillRect(20, 12, 2, 2);
-      ctx.fillStyle = '#1d1d22'; ctx.fillRect(7, 8, 6, 2); ctx.fillRect(19, 8, 6, 2);
-      ctx.fillRect(11, 23, 10, 2); ctx.fillRect(9, 21, 2, 2); ctx.fillRect(21, 21, 2, 2); // smile
-    }
-  });
-}
-
-export function createPlayer() {
-  const root = new THREE.Group();
-  const body = pivot(root, 0, 0, 0);
-  const legs = [], arms = [];
-  const plaid = new THREE.MeshLambertMaterial({ map: plaidTexture() });
-  const skin = '#f1c27d';
-  const shoe = [0.54, 0.2, 0.64, '#f4f4f4', 0.06];
-  leg(body, legs, 0.5, 1.0, 0.5, '#26262b', -0.26, 1.0, 0, 0, shoe);
-  leg(body, legs, 0.5, 1.0, 0.5, '#26262b', 0.26, 1.0, 0, Math.PI, shoe);
-  box(body, 1.04, 1.0, 0.54, plaid, 0, 1.5, 0);
-  for (const s of [-1, 1]) {
-    const a = pivot(body, s * 0.76, 1.95, 0);
-    box(a, 0.46, 0.72, 0.5, plaid, 0, -0.32, 0);
-    box(a, 0.42, 0.3, 0.46, skin, 0, -0.84, 0);
-    a.userData.side = s;
-    arms.push(a);
-  }
-  const head = pivot(body, 0, 2.0, 0);
-  const faces = { normal: faceTexture(false), scared: faceTexture(true) };
-  const faceMat = new THREE.MeshLambertMaterial({ map: faces.normal });
-  const sk = mat(skin);
-  const headMesh = new THREE.Mesh(boxGeo(0.84, 0.84, 0.84), [sk, sk, sk, sk, faceMat, sk]);
-  headMesh.position.y = 0.44;
-  headMesh.castShadow = true;
-  head.add(headMesh);
-  const hair = '#1d1d22';
-  box(head, 0.94, 0.26, 0.94, hair, 0, 0.92, -0.02);
-  box(head, 0.94, 0.6, 0.2, hair, 0, 0.6, -0.4);
-  box(head, 0.14, 0.38, 0.86, hair, -0.46, 0.7, -0.04);
-  box(head, 0.14, 0.38, 0.86, hair, 0.46, 0.7, -0.04);
-  box(head, 0.94, 0.16, 0.16, hair, 0, 0.8, 0.42);
-  box(head, 0.3, 0.24, 0.3, hair, -0.2, 1.12, 0.18).rotation.y = 0.5;
-  box(head, 0.3, 0.22, 0.3, hair, 0.18, 1.1, -0.15).rotation.y = 0.3;
-  box(head, 0.26, 0.2, 0.26, hair, 0.25, 1.06, 0.28).rotation.y = 0.9;
-  return {
-    root, body, legs, arms, head,
-    setScared(v) {
-      const map = v ? faces.scared : faces.normal;
-      if (faceMat.map !== map) { faceMat.map = map; faceMat.needsUpdate = true; }
-    },
-  };
 }
 
 function eyes(rig, parent, x, y, z, size = 0.14, color = '#111', brows = true) {
