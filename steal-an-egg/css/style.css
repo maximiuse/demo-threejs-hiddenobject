@@ -140,6 +140,35 @@ body.touch .kbd-only { display: none; }
 .collection .hdr { font-weight: 800; text-align: center; font-size: 12px; }
 .collection .name { font-weight: 700; padding-right: 6px; white-space: nowrap; }
 
+.tabs { display: flex; gap: 8px; margin-top: 4px; }
+.tab {
+  flex: 1; border: 0; border-radius: 12px; padding: 9px; font-weight: 800; font-size: 16px; color: #fff;
+  background: rgba(255,255,255,.08); border: 2px solid transparent;
+}
+.tab.on { background: rgba(255,255,255,.18); border-color: #ffd740; }
+.skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+.skin {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px;
+  background: rgba(255,255,255,.07); border-radius: 16px; border: 2px solid rgba(255,255,255,.08); text-align: center;
+}
+.skin.worn { border-color: #69f0ae; }
+.skin img { width: 100%; max-width: 120px; aspect-ratio: 120 / 140; border-radius: 12px; display: block; }
+.skin .title { font-weight: 800; font-size: 14px; min-height: 2.4em; display: grid; place-items: center; }
+.skin .buy { width: 100%; min-width: 0; }
+.skin .tag {
+  position: absolute; top: 6px; left: 6px; font-size: 10px; font-weight: 900; letter-spacing: .5px;
+  background: linear-gradient(90deg, #ff4081, #7c4dff); padding: 2px 7px; border-radius: 8px;
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.row .buy { flex: 1; min-width: 0; }
+@media (max-width: 560px) { .row.two .buy { flex: 1 1 calc(50% - 4px); } }
+.row input {
+  flex: 2; min-width: 0; font: inherit; font-size: 17px; font-weight: 700; color: #fff; padding: 9px 12px;
+  border-radius: 12px; border: 2px solid rgba(255,255,255,.25); background: rgba(0,0,0,.3);
+  user-select: text; -webkit-user-select: text; touch-action: manipulation;
+}
+.row input:focus { outline: none; border-color: #ffd740; }
+
 .empty { opacity: .7; text-align: center; padding: 20px; }
 .menu-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .menu-btns .buy { font-size: 19px; padding: 13px; }
