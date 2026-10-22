@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#5c8fd6">
+  <title>Укради Яйцо 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="vignette"></div>
+
+  <div id="hud" class="hidden">
+    <div id="stats">
+      <div class="pill" id="pillMoney"><span class="ico">💰</span><span id="money">0</span><small id="income"></small></div>
+      <div class="pill" id="pillSpeed"><span class="ico">👟</span><span id="speed">16</span><small id="training"></small></div>
+    </div>
+    <div id="topbtns">
+      <button class="rbtn" id="btnShop" title="Магазин (B)">🛒</button>
+      <button class="rbtn" id="btnPets" title="Питомцы (P)">🐣</button>
+      <button class="rbtn" id="btnPause" title="Пауза (Esc)">⏸</button>
+    </div>
+    <div id="toasts"></div>
+    <div id="hint"></div>
+    <div id="joyZone"><div id="joyBase"><div id="joyKnob"></div></div></div>
+    <button id="btnJump">⤒</button>
+  </div>
+
+  <div id="modal" class="hidden">
+    <div class="panel">
+      <div class="panel-head"><h2 id="modalTitle"></h2><button class="close" id="modalClose">✕</button></div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="start-card">
+      <div class="logo"><span class="egg">🥚</span><h1>Укради Яйцо</h1><div class="sub">Steal An Egg · 3D</div></div>
+      <ul class="howto">
+        <li>🥚 Кради яйца у животных — они погонятся за тобой!</li>
+        <li>🏠 Беги на базу: за барьер животные не пройдут</li>
+        <li>🐣 Яйца вылупляются в питомцев (бывают редкие!)</li>
+        <li>💰 Питомцы приносят деньги каждую секунду</li>
+        <li>⬆️ Покупай скорость, слоты и улучшай беговую дорожку</li>
+        <li>🏃 Тренируйся на дорожке, чтобы стать быстрее</li>
+      </ul>
+      <div class="controls">
+        <div class="kbd-only"><b>Клавиатура:</b> WASD / стрелки — бег, Пробел — прыжок, мышь — камера, Q/E — поворот, колесо — зум, B — магазин, P — питомцы</div>
+        <div><b>Сенсор:</b> джойстик слева, свайп по экрану — камера, кнопка справа — прыжок</div>
+      </div>
+      <button id="btnPlay" class="big">Играть</button>
+      <div id="loading">Загрузка…</div>
+    </div>
+  </div>
+
+  <script type="module" src="js/game.js"></script>
+</body>
+</html>
