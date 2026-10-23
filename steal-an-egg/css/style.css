@@ -14,6 +14,10 @@ button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
   background: radial-gradient(ellipse at center, rgba(255,0,0,0) 55%, rgba(220,0,0,.55) 100%);
 }
 
+#flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: #eef6ff; }
+.pill.small { font-size: 17px; min-width: 0; align-self: flex-start; padding: 3px 12px 3px 6px; }
+.pill.small .ico { font-size: 17px; width: 24px; }
+.pill.small small { color: #fff; font-size: 16px; }
 #hud { position: fixed; inset: 0; pointer-events: none; }
 #hud > * { pointer-events: auto; }
 
@@ -161,7 +165,7 @@ body.touch .kbd-only { display: none; }
 }
 .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .row .buy { flex: 1; min-width: 0; }
-@media (max-width: 560px) { .row.two .buy { flex: 1 1 calc(50% - 4px); } }
+.row.two .buy { flex: 1 1 calc(50% - 4px); }
 .row input {
   flex: 2; min-width: 0; font: inherit; font-size: 17px; font-weight: 700; color: #fff; padding: 9px 12px;
   border-radius: 12px; border: 2px solid rgba(255,255,255,.25); background: rgba(0,0,0,.3);
