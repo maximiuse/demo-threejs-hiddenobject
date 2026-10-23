@@ -105,6 +105,183 @@ function eyes(rig, parent, x, y, z, size = 0.14, color = '#111', brows = true) {
   }
 }
 
+// ---------- Bloggers (blocky people) ----------
+function fabric(base, draw) {
+  return new THREE.MeshLambertMaterial({ map: canvasTexture(32, 32, (ctx) => { ctx.fillStyle = base; ctx.fillRect(0, 0, 32, 32); draw?.(ctx); }) });
+}
+const knit = (c) => fabric(c, (ctx) => { ctx.fillStyle = 'rgba(0,0,0,0.08)'; for (let x = 0; x < 32; x += 4) ctx.fillRect(x, 0, 1, 32); });
+const stripes = (a, b) => fabric(a, (ctx) => { ctx.fillStyle = b; for (let y = 0; y < 32; y += 8) ctx.fillRect(0, y, 32, 4); });
+const fishnet = (skin) => fabric(skin, (ctx) => { ctx.fillStyle = '#111'; for (let i = 0; i < 32; i += 5) { ctx.fillRect(i, 0, 1, 32); ctx.fillRect(0, i, 32, 1); } });
+function textFabric(base, text, color, size = 9) {
+  return fabric(base, (ctx) => {
+    ctx.fillStyle = color; ctx.font = `900 ${size}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    text.split('\n').forEach((l, i, arr) => ctx.fillText(l, 16, 16 + (i - (arr.length - 1) / 2) * (size + 1)));
+  });
+}
+
+function personFace(o) {
+  return canvasTexture(32, 32, (ctx) => {
+    ctx.fillStyle = o.skin; ctx.fillRect(0, 0, 32, 32);
+    if (o.stubble) { ctx.fillStyle = 'rgba(80,60,40,0.25)'; ctx.fillRect(8, 22, 16, 8); }
+    if (o.blush) { ctx.fillStyle = '#f48fb1'; ctx.fillRect(4, 19, 4, 2); ctx.fillRect(24, 19, 4, 2); }
+    if (o.brow) { ctx.fillStyle = o.brow; ctx.fillRect(6, 8, 8, 2); ctx.fillRect(18, 8, 8, 2); }
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(8, 12, 6, 5); ctx.fillRect(18, 12, 6, 5);
+    ctx.fillStyle = o.iris; ctx.fillRect(10, 12, 4, 5); ctx.fillRect(20, 12, 4, 5);
+    ctx.fillStyle = '#111'; ctx.fillRect(11, 13, 2, 3); ctx.fillRect(21, 13, 2, 3);
+    if (o.mole) { ctx.fillStyle = '#7b5a48'; ctx.fillRect(24, 21, 1, 1); }
+    ctx.fillStyle = 'rgba(120,70,50,0.35)'; ctx.fillRect(15, 15, 2, 5);
+    ctx.fillStyle = o.lips; ctx.fillRect(12, 24, 8, 2);
+  });
+}
+
+// Human body for animal-style rigs: arms swing in the leg list, opposite to the legs.
+function person(rig, r, o) {
+  const L = rig.legs;
+  const legs = [];
+  for (const [s, ph] of [[-1, 0], [1, Math.PI]]) {
+    legs.push(leg(r, L, 0.5, 1.0, 0.5, s < 0 && o.pantsL ? o.pantsL : o.pants, s * 0.26, 1.0, 0, ph, [0.54, 0.2, 0.64, o.shoe, 0.06]));
+  }
+  if (o.crop) {
+    box(r, 1.04, 0.6, 0.54, o.shirt, 0, 1.7, 0);
+    box(r, 1.0, 0.42, 0.5, o.skin, 0, 1.2, 0);
+  } else box(r, 1.04, 1.0, 0.54, o.shirt, 0, 1.5, 0);
+  const arms = [];
+  for (const [s, ph] of [[-1, Math.PI], [1, 0]]) {
+    const a = pivot(r, s * 0.76, 1.95, 0);
+    box(a, 0.46, 0.72, 0.5, o.sleeve || o.shirt, 0, -0.32, 0);
+    box(a, 0.42, 0.3, 0.46, o.skin, 0, -0.84, 0);
+    a.userData.phase = ph;
+    L.push(a);
+    arms.push(a);
+  }
+  const head = pivot(r, 0, 2.0, 0);
+  const sk = mat(o.skin);
+  const fm = new THREE.MeshLambertMaterial({ map: personFace(o) });
+  const hm = new THREE.Mesh(boxGeo(0.84, 0.84, 0.84), [sk, sk, sk, sk, fm, sk]);
+  hm.position.y = 0.44;
+  hm.castShadow = true;
+  head.add(hm);
+  rig.height = 3.3;
+  return { head, legs, arms };
+}
+
+const lensMat = new THREE.MeshLambertMaterial({ color: '#f2e6d0', transparent: true, opacity: 0.35 });
+
+function buildBlogger(id, rig, r) {
+  switch (id) {
+    case 'blondie': {
+      const sweater = knit('#f7a8c4');
+      const { head } = person(rig, r, { skin: '#f3cdb4', shirt: sweater, pants: '#9fb7d6', shoe: '#fafafa', iris: '#6d5a3a', brow: '#8a6a45', lips: '#d98c8c', mole: true });
+      const hair = '#e6c98f';
+      box(head, 0.94, 0.24, 0.94, hair, 0, 0.93, -0.02);
+      box(head, 0.1, 0.06, 0.6, '#b8955a', 0, 1.06, 0.12);
+      box(head, 0.96, 1.7, 0.2, hair, 0, 0.1, -0.42);
+      for (const s of [-1, 1]) {
+        box(head, 0.16, 1.35, 0.55, hair, s * 0.47, 0.3, -0.15);
+        box(head, 0.18, 1.1, 0.2, hair, s * 0.47, 0.05, 0.25);
+      }
+      return head;
+    }
+    case 'headphones': {
+      const { head } = person(rig, r, { skin: '#e9c09a', shirt: textFabric('#1e1e22', 'TIME', '#e0e0e0', 8), sleeve: '#1e1e22', pants: '#222226', shoe: '#eeeeee', iris: '#3b2a1d', brow: '#3b2a1d', lips: '#c98b80', stubble: true });
+      box(r, 0.6, 0.16, 0.56, '#2a2a30', 0, 2.02, -0.05);                       // hood collar
+      const hair = '#e8dcb5';
+      box(head, 0.96, 0.3, 0.96, hair, 0, 0.95, -0.02);
+      box(head, 0.96, 0.5, 0.2, hair, 0, 0.65, -0.42);
+      box(head, 0.6, 0.2, 0.2, hair, 0.12, 0.86, 0.42).rotation.z = 0.25;
+      box(head, 0.32, 0.26, 0.32, hair, -0.22, 1.16, 0.15).rotation.y = 0.6;
+      box(head, 0.3, 0.24, 0.3, hair, 0.22, 1.14, -0.12).rotation.y = 0.3;
+      box(head, 0.28, 0.22, 0.28, '#d8c99c', 0.05, 1.18, 0.3).rotation.z = 0.4;
+      const gold = '#d4af37';
+      for (const s of [-1, 1]) {
+        box(head, 0.3, 0.24, 0.03, lensMat, s * 0.2, 0.47, 0.44);
+        box(head, 0.3, 0.03, 0.04, gold, s * 0.2, 0.33, 0.45);
+        box(head, 0.03, 0.24, 0.04, gold, s * 0.36, 0.47, 0.45);
+        box(head, 0.03, 0.03, 0.5, gold, s * 0.43, 0.56, 0.2);
+        box(head, 0.24, 0.52, 0.44, '#cfd2d6', s * 0.55, 0.45, 0);               // headphone cups
+        box(head, 0.06, 0.4, 0.34, '#9ea3a8', s * 0.43, 0.45, 0);
+        box(head, 0.12, 0.45, 0.2, '#bfc3c8', s * 0.6, 0.88, 0);
+      }
+      box(head, 0.8, 0.04, 0.05, gold, 0, 0.59, 0.45);
+      box(head, 1.25, 0.12, 0.24, '#bfc3c8', 0, 1.14, 0);
+      return head;
+    }
+    case 'robloxgirl': {
+      const skin = '#fbe3cf';
+      const top = [mat('#111111'), mat('#111111'), mat('#111111'), mat('#111111'), textFabric('#111111', 'BLACK\nPINK', '#ff6fb5', 9), mat('#111111')];
+      const { head, legs } = person(rig, r, {
+        skin, shirt: top, sleeve: stripes('#111111', '#ff6fb5'), crop: true, pants: stripes('#111111', '#ff6fb5'), pantsL: fishnet(skin),
+        shoe: '#111111', iris: '#111111', lips: '#ff6fb5', blush: true,
+      });
+      for (const l of legs) box(l, 0.56, 0.12, 0.2, '#ffffff', 0, -0.94, 0.32);   // sneaker toe caps
+      box(r, 1.18, 0.4, 0.68, stripes('#f48fb1', '#f8bbd0'), 0, 1.06, 0);         // skirt
+      box(r, 1.1, 0.08, 0.6, '#ffffff', 0, 1.28, 0);                              // belt chain
+      const hair = '#f1d9a6';
+      box(head, 0.96, 0.26, 0.96, hair, 0, 0.93, -0.02);
+      box(head, 0.96, 1.0, 0.2, hair, 0, 0.35, -0.42);
+      box(head, 0.96, 0.2, 0.16, hair, 0, 0.82, 0.43);
+      for (const s of [-1, 1]) {
+        box(head, 0.14, 0.9, 0.62, hair, s * 0.48, 0.42, -0.12);
+        box(head, 0.42, 0.42, 0.42, hair, s * 0.32, 1.18, -0.05);                // space buns
+      }
+      const gum = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), mat('#ff4f9a'));
+      gum.position.set(0.06, 0.2, 0.5);
+      head.add(gum);
+      return head;
+    }
+    case 'streamer': {
+      const { head, arms } = person(rig, r, { skin: '#d9a37c', shirt: textFabric('#6a1b9a', 'GG', '#00e676', 12), sleeve: '#6a1b9a', pants: '#263238', shoe: '#00e676', iris: '#2e2e2e', brow: '#2e2e2e', lips: '#b9746a' });
+      box(head, 0.96, 0.24, 0.96, '#d50000', 0, 0.96, 0);                         // backwards cap
+      box(head, 0.7, 0.08, 0.46, '#d50000', 0, 0.88, -0.66);
+      box(head, 0.94, 0.3, 0.2, '#3e2723', 0, 0.68, -0.42);
+      box(head, 1.04, 0.1, 0.2, '#111111', 0, 1.12, 0);                           // headset
+      for (const s of [-1, 1]) {
+        box(head, 0.22, 0.44, 0.4, '#111111', s * 0.53, 0.45, 0);
+        box(head, 0.04, 0.3, 0.28, '#00e676', s * 0.65, 0.45, 0);
+        box(head, 0.1, 0.5, 0.12, '#111111', s * 0.55, 0.85, 0);
+      }
+      box(head, 0.05, 0.05, 0.5, '#111111', -0.46, 0.25, 0.25);
+      box(head, 0.1, 0.1, 0.1, '#00e676', -0.32, 0.2, 0.5);
+      box(arms[1], 0.6, 0.14, 0.34, '#37474f', -0.3, -1.02, 0.25);               // gamepad
+      return head;
+    }
+    case 'vlogger': {
+      const shirt = fabric('#26c6da', (ctx) => { ctx.fillStyle = '#ffeb3b'; for (let i = 0; i < 6; i++) ctx.fillRect((i * 11) % 28, (i * 7) % 28, 4, 4); ctx.fillStyle = '#ff7043'; for (let i = 0; i < 5; i++) ctx.fillRect((i * 13 + 5) % 28, (i * 9 + 15) % 28, 3, 3); });
+      const { head } = person(rig, r, { skin: '#f1c27d', shirt, pants: '#5d4037', shoe: '#ff7043', iris: '#4e342e', brow: '#4e342e', lips: '#c47a6c' });
+      box(head, 1.0, 0.3, 1.0, '#ff7043', 0, 0.97, 0);                            // bucket hat
+      box(head, 1.32, 0.06, 1.32, '#f4511e', 0, 0.83, 0);
+      box(head, 0.84, 0.18, 0.05, '#111111', 0, 0.5, 0.44);                       // sunglasses
+      box(r, 0.8, 0.9, 0.3, '#00897b', 0, 1.55, -0.42);                           // backpack
+      const stick = box(r, 0.07, 1.7, 0.07, '#212121', 0.85, 2.85, 0.45);         // selfie stick
+      stick.rotation.x = -0.35;
+      box(r, 0.4, 0.28, 0.3, '#111111', 0.85, 3.65, 0.78);
+      box(r, 0.14, 0.14, 0.05, '#4fc3f7', 0.85, 3.65, 0.62);
+      box(r, 0.06, 0.06, 0.05, '#ff1744', 0.98, 3.74, 0.62);
+      return head;
+    }
+    case 'millionaire': {
+      const white = '#fafafa';
+      const { head } = person(rig, r, { skin: '#e0ac80', shirt: white, pants: white, shoe: '#ffd700', iris: '#3b2a1d', brow: '#3b2a1d', lips: '#b9746a' });
+      box(r, 0.36, 0.95, 0.05, '#212121', 0, 1.52, 0.28);                         // shirt under the jacket
+      for (const s of [-1, 1]) box(r, 0.05, 0.5, 0.06, '#ffd700', s * 0.16, 1.78, 0.31).rotation.z = s * 0.45;   // chain
+      box(r, 0.2, 0.24, 0.06, '#ffd700', 0, 1.52, 0.32);
+      box(head, 0.94, 0.2, 0.94, '#2b1d14', 0, 0.92, 0);
+      box(head, 0.86, 0.18, 0.05, '#111111', 0, 0.5, 0.44);
+      box(head, 0.86, 0.04, 0.06, '#ffd700', 0, 0.6, 0.45);
+      box(head, 0.9, 0.24, 0.9, '#ffd700', 0, 1.12, 0);                           // crown
+      for (const [x, z] of [[-0.35, 0.35], [0.35, 0.35], [-0.35, -0.35], [0.35, -0.35]]) box(head, 0.18, 0.26, 0.18, '#ffd700', x, 1.36, z);
+      box(head, 0.14, 0.14, 0.06, '#e53935', 0, 1.15, 0.46);
+      const plaque = pivot(r, -1.0, 1.7, 0.4);                                     // golden play button
+      plaque.rotation.y = 0.35;
+      box(plaque, 0.95, 1.15, 0.1, '#ffd700', 0, 0, 0);
+      box(plaque, 0.5, 0.36, 0.06, '#ff1744', 0, 0.05, 0.07);
+      box(plaque, 0.12, 0.16, 0.04, '#ffffff', 0.02, 0.05, 0.1);
+      return head;
+    }
+  }
+  return null;
+}
+
 const haloGeo = new THREE.TorusGeometry(0.42, 0.07, 6, 20);
 const haloMat = new THREE.MeshBasicMaterial({ color: '#ffe57f' });
 function halo(parent, y) {
@@ -513,6 +690,10 @@ export function createAnimal(id) {
       box(rig.tail, 0.25, 0.25, 1.6, R, 0, 0, -0.8);
       box(rig.tail, 0.4, 0.4, 0.1, '#111', 0, 0, -1.65).rotation.z = Math.PI / 4;
       rig.height = 5.2;
+      break;
+    }
+    default: {
+      head = buildBlogger(id, rig, r);
       break;
     }
   }

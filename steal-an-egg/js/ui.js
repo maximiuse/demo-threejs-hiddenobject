@@ -95,7 +95,7 @@ export class UI {
     this.setText('money', this.el.money, fmt(s.money));
     this.setText('income', this.el.income, hud.income > 0 ? `+${fmt(hud.income)}/с` : '');
     this.setText('speed', this.el.speed, String(Math.floor(s.speed)));
-    this.setText('training', this.el.training, hud.training ? `+${hud.training.toFixed(1)}/с` : '');
+    this.setText('training', this.el.training, hud.training ? `+${hud.training.toFixed(2)}/с` : '');
     this.setText('hint', this.el.hint, hud.hint || '');
     this.el.hint.classList.toggle('danger', !!hud.danger);
     this.setText('replace', this.el.replace, hud.replace || '');
@@ -157,7 +157,7 @@ export class UI {
           </div></div>
           <div class="card"><div class="big-ico">🏃</div><div class="info">
             <div class="title">Беговая дорожка · ур. ${tl}</div>
-            <div class="desc">Тренировка: +${UPG.treadmill.gain(tl).toFixed(1)} скорости/с${tMax ? '' : ` → +${UPG.treadmill.gain(tl + 1).toFixed(1)}/с`}</div>
+            <div class="desc">Тренировка: +${UPG.treadmill.gain(tl).toFixed(2)} скорости/с${tMax ? '' : ` → +${UPG.treadmill.gain(tl + 1).toFixed(2)}/с`}</div>
           </div><div class="btns">
             <button class="buy blue" data-act="tread" ${tMax || s.money < tc ? 'disabled' : ''}>${tMax ? 'Макс.' : `Улучшить · $${fmt(tc)}`}</button>
           </div></div>

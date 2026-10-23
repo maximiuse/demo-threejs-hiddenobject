@@ -1,7 +1,7 @@
 // Steal An Egg — main game loop, player, animal AI, incubators and economy.
 import * as THREE from 'three';
 import {
-  ANIMALS, RARITIES, UPG, SPEED_SCALE, START_SPEED, MAX_SPEED, BASE_EDGE, WORLD,
+  ANIMALS, RARITIES, UPG, worldSpeed, speedPrice, START_SPEED, MAX_SPEED, BASE_EDGE, WORLD,
   SLOT_POS, TREADMILL, SHOP_PAD, SPAWN, SKINS, TRAILS, ADMIN_CODE,
 } from './config.js';
 import { createPlayer, renderSkinThumbs } from './skins.js';
@@ -216,14 +216,14 @@ class Animal {
       }
       case 'chase': {
         if (p.carrying !== this.idx || g.inBase(p.pos)) { this.state = 'return'; break; }
-        speed = this.moveTo(p.pos, def.speed * SPEED_SCALE, dt);
+        speed = this.moveTo(p.pos, worldSpeed(def.speed), dt);
         const d = Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z);
         if (d < 0.9 + def.scale * 0.6 && p.pos.y < this.top && !g.state.god) g.caught(this);
         break;
       }
       case 'return': {
         this.alertLabel.sprite.visible = false;
-        speed = this.moveTo(this.home, Math.max(5, def.speed * SPEED_SCALE * 0.4), dt);
+        speed = this.moveTo(this.home, Math.max(5, worldSpeed(def.speed) * 0.4), dt);
         if (this.pos.distanceTo(this.home) < 0.1) { this.state = 'idle'; this.timer = 1; this.sleepIn = 5; }
         break;
       }
@@ -428,7 +428,7 @@ class Game {
   sellPrice(p) { return this.petIncome(p) * UPG.sellMult; }
   speedCost(k) {
     let c = 0;
-    for (let j = 0; j < k; j++) c += UPG.speed.cost(this.state.speedBuys + j);
+    for (let j = 0; j < k; j++) c += speedPrice(this.state.speed + j * UPG.speed.step);
     return c;
   }
   treadmillCost() { return UPG.treadmill.cost(this.state.tread); }
@@ -848,7 +848,7 @@ class Game {
     const l = this.state.tread;
     this.world.treadmill.label.set([
       { t: 'БЕГОВАЯ ДОРОЖКА', c: '#80d8ff', s: 50 },
-      { t: `Ур. ${l} · +${UPG.treadmill.gain(l).toFixed(1)} скорости/с`, c: '#ffffff', s: 38 },
+      { t: `Ур. ${l} · +${UPG.treadmill.gain(l).toFixed(2)} скорости/с`, c: '#ffffff', s: 38 },
       { t: 'встань и стой', c: '#cfd8dc', s: 30 },
     ]);
   }
@@ -866,7 +866,7 @@ class Game {
     const dx = cy * mv.x - sy * mv.y, dz = -sy * mv.x - cy * mv.y;
     p.stun -= dt;
     const moving = Math.hypot(dx, dz) > 0.05 && p.stun <= 0;
-    const speed = s.speed * SPEED_SCALE;
+    const speed = worldSpeed(s.speed);
     let vx = 0, vz = 0;
     if (moving) {
       vx = dx * speed;
@@ -910,9 +910,9 @@ class Game {
       s.speed = Math.min(MAX_SPEED, s.speed + gain * dt);
       this.world.treadmill.beltTex.offset.y -= dt * 2.5;
       this.trainTick += dt;
-      if (this.trainTick >= 1) {
+      if (this.trainTick >= 2) {
         this.trainTick = 0;
-        this.floaters.spawn(`+${gain.toFixed(1)} 👟`, '#80d8ff', new THREE.Vector3(p.pos.x, 3.6, p.pos.z), 56);
+        this.floaters.spawn(`+${(gain * 2).toFixed(2)} 👟`, '#80d8ff', new THREE.Vector3(p.pos.x, 3.6, p.pos.z), 56);
         this.updateSigns();
       }
     } else {
@@ -1043,6 +1043,7 @@ class Game {
     const hell = zone.hellSky ? clamp((this.cam.target.x + 6) / 12, 0, 1) : 0;
     this.sky.lerp(tmpColor.set(zone.sky).lerp(tmpColor2.set(zone.hellSky || zone.sky), hell), k);
     this.scene.fog.color.lerp(tmpColor.set(zone.fog).lerp(tmpColor2.set(zone.hellFog || zone.fog), hell), k);
+    if (w.likes) for (const h of w.likes.children) { h.rotation.y += dt * 1.2; h.position.y = h.userData.y + Math.sin(t * 1.5 + h.userData.phase) * 0.8; }
     if (w.fires) for (const fl of w.fires) fl.scale.set(1, 0.7 + Math.abs(Math.sin(t * 7 + fl.userData.phase)) * 0.6, 1);
     const near = zone.id === 'volcano' ? 40 : 70, far = zone.id === 'volcano' ? 170 : 220;
     this.scene.fog.near += (near - this.scene.fog.near) * k;
