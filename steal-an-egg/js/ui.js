@@ -22,6 +22,7 @@ export class UI {
     this.last = {};
     this.el = {
       money: $('money'), income: $('income'), speed: $('speed'), training: $('training'),
+      clockIco: $('clockIco'), clock: $('clock'), weather: $('weather'),
       pillMoney: $('pillMoney'), pillSpeed: $('pillSpeed'),
       toasts: $('toasts'), hint: $('hint'), vignette: $('vignette'),
       modal: $('modal'), title: $('modalTitle'), body: $('modalBody'),
@@ -97,6 +98,11 @@ export class UI {
     this.setText('speed', this.el.speed, String(Math.floor(s.speed)));
     this.setText('training', this.el.training, hud.training ? `+${hud.training.toFixed(2)}/с` : '');
     this.setText('hint', this.el.hint, hud.hint || '');
+    if (hud.clock) {
+      this.setText('clockIco', this.el.clockIco, hud.clock.ico);
+      this.setText('clock', this.el.clock, hud.clock.clock);
+      this.setText('weather', this.el.weather, hud.clock.weather);
+    }
     this.el.hint.classList.toggle('danger', !!hud.danger);
     this.setText('replace', this.el.replace, hud.replace || '');
     this.el.replace.classList.toggle('hidden', !hud.replace);
@@ -261,6 +267,15 @@ export class UI {
         <button class="buy ${s.god ? '' : 'blue'}" data-act="adm-god">🛡 Неуловимость: ${on(s.god)}</button>
         <button class="buy ${s.forceLeg ? '' : 'blue'}" data-act="adm-leg">⭐ Всегда легендарные: ${on(s.forceLeg)}</button>
         <button class="buy blue" data-act="adm-hatch">🐣 Вылупить все яйца сейчас</button>
+      </div>
+      <div class="section">🌦 События (для проверки)</div>
+      <div class="row two">
+        <button class="buy blue" data-act="adm-time">🌗 День ↔ ночь</button>
+        <button class="buy blue" data-act="adm-weather">🌦 Погода: ${{ clear: 'ясно', rain: 'дождь', storm: 'гроза' }[s.weather] || s.weather}</button>
+        <button class="buy blue" data-act="adm-fox">🦊 Позвать лису</button>
+        <button class="buy blue" data-act="adm-cult">🕯 Позвать культистов</button>
+      </div>
+      <div class="menu-btns">
         <button class="buy blue" data-act="adm-skins">👕 Открыть все скины и следы</button>
         <button class="buy danger" data-act="adm-logout">🚪 Выйти из админки</button>
       </div>`;

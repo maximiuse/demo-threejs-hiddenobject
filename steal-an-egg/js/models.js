@@ -120,6 +120,7 @@ function textFabric(base, text, color, size = 9) {
 }
 
 function personFace(o) {
+  if (o.faceTex) return o.faceTex;
   return canvasTexture(32, 32, (ctx) => {
     ctx.fillStyle = o.skin; ctx.fillRect(0, 0, 32, 32);
     if (o.stubble) { ctx.fillStyle = 'rgba(80,60,40,0.25)'; ctx.fillRect(8, 22, 16, 8); }
@@ -257,6 +258,34 @@ function buildBlogger(id, rig, r) {
       box(r, 0.4, 0.28, 0.3, '#111111', 0.85, 3.65, 0.78);
       box(r, 0.14, 0.14, 0.05, '#4fc3f7', 0.85, 3.65, 0.62);
       box(r, 0.06, 0.06, 0.05, '#ff1744', 0.98, 3.74, 0.62);
+      return head;
+    }
+    case 'cultist': {
+      // Roblox "noob" in a dark coat with a deer-skull mask and antlers.
+      const noob = canvasTexture(32, 32, (ctx) => {
+        ctx.fillStyle = '#f5d33a'; ctx.fillRect(0, 0, 32, 32);
+        ctx.fillStyle = '#111'; ctx.fillRect(11, 22, 10, 2); ctx.fillRect(9, 20, 2, 2); ctx.fillRect(21, 20, 2, 2);
+      });
+      const coat = '#3b3d3a';
+      const vest = fabric('#6d6a62', (ctx) => { ctx.fillStyle = '#2b2b2b'; for (let y = 6; y < 30; y += 7) ctx.fillRect(15, y, 2, 2); ctx.fillStyle = coat; ctx.fillRect(0, 0, 9, 32); ctx.fillRect(23, 0, 9, 32); });
+      const { head } = person(rig, r, { skin: '#f5d33a', faceTex: noob, shirt: vest, sleeve: coat, pants: '#9a8350', shoe: '#5a1f1a' });
+      box(r, 1.1, 0.55, 0.6, coat, 0, 0.98, -0.02);                               // coat tails
+      box(r, 0.5, 0.18, 0.1, '#55574f', 0, 1.98, 0.27);                            // collar
+      const bone = '#d9dcc4';
+      box(head, 0.88, 0.46, 0.08, bone, 0, 0.66, 0.45);                           // skull mask
+      box(head, 0.14, 0.12, 0.04, '#222', -0.2, 0.62, 0.5);
+      box(head, 0.14, 0.12, 0.04, '#222', 0.2, 0.62, 0.5);
+      box(head, 0.16, 0.42, 0.16, bone, 0, 0.36, 0.55);                            // long skull snout
+      const horn = '#4a4a44';
+      for (const s of [-1, 1]) {
+        const beam = box(head, 0.1, 1.3, 0.1, horn, s * 0.45, 1.45, 0);
+        beam.rotation.z = -s * 0.35;
+        box(head, 0.08, 0.55, 0.08, horn, s * 0.42, 1.55, 0).rotation.z = s * 0.5;
+        box(head, 0.08, 0.6, 0.08, horn, s * 0.85, 1.85, 0).rotation.z = -s * 0.9;
+        box(head, 0.08, 0.5, 0.08, horn, s * 0.75, 2.15, 0).rotation.z = s * 0.2;
+        box(head, 0.08, 0.45, 0.08, horn, s * 0.95, 1.55, 0).rotation.z = -s * 1.2;
+      }
+      rig.height = 4.6;
       return head;
     }
     case 'millionaire': {
@@ -690,6 +719,26 @@ export function createAnimal(id) {
       box(rig.tail, 0.25, 0.25, 1.6, R, 0, 0, -0.8);
       box(rig.tail, 0.4, 0.4, 0.1, '#111', 0, 0, -1.65).rotation.z = Math.PI / 4;
       rig.height = 5.2;
+      break;
+    }
+    case 'fox': {
+      const F = '#e8762b';
+      quad(r, L, 0.2, 0.6, '#3e2723', 0.25, 0.5, 0.62);
+      box(r, 0.8, 0.65, 1.5, F, 0, 0.95, 0);
+      box(r, 0.6, 0.45, 0.6, '#fafafa', 0, 0.85, 0.5);
+      rig.tail = pivot(r, 0, 1.05, -0.75);
+      box(rig.tail, 0.45, 0.45, 1.2, F, 0, 0.1, -0.55).rotation.x = -0.3;
+      box(rig.tail, 0.4, 0.4, 0.35, '#fafafa', 0, 0.32, -1.15).rotation.x = -0.3;
+      head = pivot(r, 0, 1.25, 0.75);
+      box(head, 0.7, 0.6, 0.6, F, 0, 0.15, 0.1);
+      box(head, 0.36, 0.28, 0.45, '#fafafa', 0, 0.02, 0.55);
+      box(head, 0.12, 0.1, 0.06, '#111', 0, 0.12, 0.79);
+      for (const s of [-1, 1]) {
+        box(head, 0.2, 0.36, 0.1, F, s * 0.22, 0.58, 0.05).rotation.z = -s * 0.2;
+        box(head, 0.12, 0.12, 0.11, '#3e2723', s * 0.25, 0.74, 0.05);
+      }
+      eyes(rig, head, 0.17, 0.25, 0.41, 0.09, '#ffd54f');
+      rig.height = 1.9;
       break;
     }
     default: {

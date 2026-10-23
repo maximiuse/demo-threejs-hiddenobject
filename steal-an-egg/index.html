@@ -18,11 +18,13 @@
   <canvas id="game"></canvas>
 
   <div id="vignette"></div>
+  <div id="flash"></div>
 
   <div id="hud" class="hidden">
     <div id="stats">
       <div class="pill" id="pillMoney"><span class="ico">💰</span><span id="money">0</span><small id="income"></small></div>
       <div class="pill" id="pillSpeed"><span class="ico">👟</span><span id="speed">16</span><small id="training"></small></div>
+      <div class="pill small" id="pillClock"><span class="ico" id="clockIco">☀️</span><span id="clock"></span><small id="weather"></small></div>
     </div>
     <div id="topbtns">
       <button class="rbtn" id="btnShop" title="Магазин (B)">🛒</button>
@@ -53,6 +55,7 @@
         <li>💰 Питомцы приносят деньги каждую секунду</li>
         <li>⬆️ Покупай скорость, слоты и улучшай беговую дорожку</li>
         <li>🏃 Тренируйся на дорожке, чтобы стать быстрее</li>
+        <li>🌙 Ночью за базу выходить нельзя, а в грозу берегись молний</li>
       </ul>
       <div class="controls">
         <div class="kbd-only"><b>Клавиатура:</b> WASD / стрелки — бег, Пробел — прыжок, мышь — камера, Q/E — поворот, колесо — зум, B — магазин, P — питомцы</div>

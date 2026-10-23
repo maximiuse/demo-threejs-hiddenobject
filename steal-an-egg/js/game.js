@@ -6,6 +6,7 @@ import {
 } from './config.js';
 import { createPlayer, renderSkinThumbs } from './skins.js';
 import { Trail } from './trail.js';
+import { WorldEvents } from './events.js';
 import { createAnimal, createEgg, animateRig, setEyesClosed, Label, boxGeo, mat } from './models.js';
 import { buildWorld, zoneAt } from './world.js';
 import { Input } from './input.js';
@@ -355,6 +356,7 @@ class Game {
       jumpBtn: document.getElementById('btnJump'),
     });
     this.ui = new UI(this);
+    this.events = new WorldEvents(this);
 
     addEventListener('resize', () => this.resize());
     addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
@@ -586,6 +588,19 @@ class Game {
         for (let i = 0; i < s.slots; i++) if (s.pets[i] && s.pets[i].r < 0) s.pets[i].t = 0.05;
         ui.close();
         return;
+      case 'adm-time': if (s.admin) this.events.skipPhase(); ui.close(); return;
+      case 'adm-weather': {
+        if (!s.admin) return;
+        const order = ['clear', 'rain', 'storm'];
+        this.events.setWeather(order[(order.indexOf(s.weather) + 1) % order.length]);
+        break;
+      }
+      case 'adm-fox':
+        if (!s.admin) return;
+        if (!this.events.spawnFox()) ui.toast('Лисе нечего красть: инкубатор пуст', '', 2000);
+        ui.close();
+        return;
+      case 'adm-cult': if (s.admin) this.events.spawnCultists(true); ui.close(); return;
       case 'adm-skins':
         if (!s.admin) return;
         for (const k of SKINS) s.skins[k.id] = true;
@@ -1041,8 +1056,16 @@ class Game {
     const k = Math.min(1, dt * 1.5);
     // in the celestial realm the sky blends from heaven (left) to hell (right)
     const hell = zone.hellSky ? clamp((this.cam.target.x + 6) / 12, 0, 1) : 0;
-    this.sky.lerp(tmpColor.set(zone.sky).lerp(tmpColor2.set(zone.hellSky || zone.sky), hell), k);
-    this.scene.fog.color.lerp(tmpColor.set(zone.fog).lerp(tmpColor2.set(zone.hellFog || zone.fog), hell), k);
+    // ...then darkened by clouds and by the night
+    const env = this.events.updateVisuals();
+    tmpColor.set(zone.sky).lerp(tmpColor2.set(zone.hellSky || zone.sky), hell).lerp(STORM_SKY, env.cloud * 0.55).lerp(NIGHT_SKY, env.night * 0.88);
+    this.sky.lerp(tmpColor, k);
+    tmpColor.set(zone.fog).lerp(tmpColor2.set(zone.hellFog || zone.fog), hell).lerp(STORM_SKY, env.cloud * 0.5).lerp(NIGHT_FOG, env.night * 0.85);
+    this.scene.fog.color.lerp(tmpColor, k);
+    if (env.flash > 0) { this.sky.lerp(WHITE, env.flash * 0.6); this.scene.fog.color.lerp(WHITE, env.flash * 0.4); }
+    this.sun.intensity = 2.3 * (1 - 0.8 * env.night) * (1 - 0.4 * env.cloud) + env.flash * 3;
+    this.hemi.intensity = 1.4 * (1 - 0.55 * env.night) * (1 - 0.25 * env.cloud) + env.flash * 2;
+    this.sun.color.copy(SUN_DAY).lerp(SUN_NIGHT, env.night);
     if (w.likes) for (const h of w.likes.children) { h.rotation.y += dt * 1.2; h.position.y = h.userData.y + Math.sin(t * 1.5 + h.userData.phase) * 0.8; }
     if (w.fires) for (const fl of w.fires) fl.scale.set(1, 0.7 + Math.abs(Math.sin(t * 7 + fl.userData.phase)) * 0.6, 1);
     const near = zone.id === 'volcano' ? 40 : 70, far = zone.id === 'volcano' ? 170 : 220;
@@ -1076,6 +1099,8 @@ class Game {
     } else if (this.state.steals === 0) {
       hint = this.inBase(p.pos) ? '⬆ Иди по тропинке к курице и укради её яйцо' : '🥚 Подойди к гнезду и забери яйцо';
     }
+    const ev = this.events.hudInfo();
+    if (ev.hint) { hint = ev.hint; danger = ev.danger; }
     let replace = '';
     if (p.carrying >= 0 && this.inBase(p.pos) && this.findFreeSlot() < 0) {
       const w = this.weakestSlot();
@@ -1085,7 +1110,7 @@ class Game {
       }
     }
     return {
-      hint, danger, vignette, income: this.income, replace,
+      hint, danger, vignette, income: this.income, replace, clock: ev,
       training: p.training ? UPG.treadmill.gain(this.state.tread) : 0,
     };
   }
@@ -1097,6 +1122,7 @@ class Game {
     this.time += dt;
     if (this.started && !this.paused) {
       this.updatePlayer(dt);
+      this.events.update(dt);
       for (const a of this.animals) a.update(dt);
       this.updateSlots(dt);
       this.updateEffects(dt);
@@ -1116,6 +1142,12 @@ class Game {
 }
 
 const tmpColor = new THREE.Color();
+const NIGHT_SKY = new THREE.Color('#0b1233');
+const NIGHT_FOG = new THREE.Color('#0a0f26');
+const STORM_SKY = new THREE.Color('#5d6670');
+const WHITE = new THREE.Color('#ffffff');
+const SUN_DAY = new THREE.Color('#fff3dc');
+const SUN_NIGHT = new THREE.Color('#8fa6ff');
 const tmpColor2 = new THREE.Color();
 const tmpHead = new THREE.Vector3();
 const tmpFocus = new THREE.Vector3(0, 0, -8);
