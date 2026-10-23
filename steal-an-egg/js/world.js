@@ -136,6 +136,9 @@ export function buildWorld(scene) {
   flatPlane(scene, 130, 300, 65, -655, 0.014, groundMat(['#3b0a0a', '#4a0e0e', '#2d0707', '#571212'], 'rgba(0,0,0,0.25)', 130, 300, 12));
   // path to the pens
   flatPlane(scene, PATH_HALF * 2, 507, 0, -251.5, 0.02, groundMat(['#d9b77a', '#cfab6b', '#e0c088', '#d4b072'], 'rgba(90,60,20,0.18)', PATH_HALF * 2, 507, 8, 1.25));
+  // blogger city
+  flatPlane(scene, 260, 300, 0, -912, 0.016, groundMat(['#2a1b4a', '#33215a', '#241640', '#3b2668'], 'rgba(255,80,220,0.25)', 260, 300, 14));
+  flatPlane(scene, PATH_HALF * 2, 250, 0, -892, 0.022, groundMat(['#ff4fd8', '#ff77e1', '#e040fb', '#ff8ae8'], 'rgba(255,255,255,0.35)', PATH_HALF * 2, 250, 15, 1.25));
   flatPlane(scene, PATH_HALF * 2, 262, 0, -636, 0.021, groundMat(['#fff8e1', '#ffecb3', '#fffde7', '#ffe082'], 'rgba(160,110,0,0.25)', PATH_HALF * 2, 262, 13, 1.25));
   for (let z = 2; z > WORLD.minZ; z -= 2.5) {
     sb.add(0.5, 0.18, 2.5, -PATH_HALF - 0.25, 0.09, z - 1.25, '#8b9a8f', { jitter: 0.1 });
@@ -316,9 +319,9 @@ export function buildWorld(scene) {
     const cx = a.side * (PATH_HALF + 2 + PEN_HALF), cz = a.z;
     const inner = a.side * (PATH_HALF + 2), outer = a.side * (PATH_HALF + 2 + PEN_HALF * 2);
     const style = a.realm || zone.id;
-    const fc = { farm: '#9a6534', forest: '#5d4037', desert: '#c8a16a', volcano: '#2f2b33', heaven: '#fff3c4', hell: '#2b0b0b' }[style];
-    const rc = { farm: '#b77a42', forest: '#795548', desert: '#dcbb87', volcano: '#4a4450', heaven: '#ffd54f', hell: '#8b1a1a' }[style];
-    const floor = { farm: '#c9a965', forest: '#7b6a3a', desert: '#e2bd78', volcano: '#5b2a22', heaven: '#fffde7', hell: '#3d0b0b' }[style];
+    const fc = { farm: '#9a6534', forest: '#5d4037', desert: '#c8a16a', volcano: '#2f2b33', heaven: '#fff3c4', hell: '#2b0b0b', blog: '#1a1a2e' }[style];
+    const rc = { farm: '#b77a42', forest: '#795548', desert: '#dcbb87', volcano: '#4a4450', heaven: '#ffd54f', hell: '#8b1a1a', blog: '#ff4fd8' }[style];
+    const floor = { farm: '#c9a965', forest: '#7b6a3a', desert: '#e2bd78', volcano: '#5b2a22', heaven: '#fffde7', hell: '#3d0b0b', blog: '#4a2f7a' }[style];
     flatPlane(scene, PEN_HALF * 2 - 0.4, PEN_HALF * 2 - 0.4, cx, cz, 0.025, groundMat([floor, floor, floor], 'rgba(0,0,0,0.08)', 18, 18, 20 + i));
     fence(sb, outer, cz - PEN_HALF, outer, cz + PEN_HALF, fc, rc);
     fence(sb, inner, cz - PEN_HALF, outer, cz - PEN_HALF, fc, rc);
@@ -401,7 +404,7 @@ export function buildWorld(scene) {
   gateSign.set([{ t: 'НЕБЕСА И ПРЕИСПОДНЯЯ', c: '#ffe57f', s: 56 }]);
   gateSign.sprite.position.set(0, 12.5, -505);
   scene.add(gateSign.sprite);
-  for (let z = -505; z > -770; z -= 8) {
+  for (let z = -505; z > -762; z -= 8) {
     const hh = R(10, 18), dh = R(10, 18);
     sb.add(R(8, 12), hh, 8.2, -R(48, 54), hh / 2 - 3, z - 4, '#ffffff', { jitter: 0.05 });     // cloud walls
     sb.add(R(6, 10), dh, 8.2, R(48, 54), dh / 2, z - 4, '#2a0a0a', { jitter: 0.1 });           // hell cliffs
@@ -437,8 +440,71 @@ export function buildWorld(scene) {
     sb.add(1.4, 0.3, 1.4, x, 0.15, z, '#1a1012');
   }
 
+  // ---------- Blogger city ----------
+  const neon = new StaticBoxes(21);
+  const neonCols = ['#ff4fd8', '#18ffff', '#b388ff', '#ffea00'];
+  for (const s of [-1, 1]) {
+    sb.add(2, 9, 2, s * 7.5, 4.5, -762, '#1a1a2e', { collide: true });
+    neon.add(2.1, 0.3, 2.1, s * 7.5, 2.5, -762, s < 0 ? '#ff4fd8' : '#18ffff');
+    neon.add(2.1, 0.3, 2.1, s * 7.5, 6.5, -762, s < 0 ? '#18ffff' : '#ff4fd8');
+  }
+  sb.add(17, 1.4, 1.6, 0, 9.7, -762, '#1a1a2e');
+  neon.add(17.2, 0.25, 1.7, 0, 9.0, -762, '#ff4fd8');
+  const blogSign = new Label({ w: 640, h: 128, worldH: 2.2, bg: 'rgba(255,40,180,0.85)' });
+  blogSign.set([{ t: 'ГОРОД БЛОГЕРОВ', c: '#ffffff', s: 60 }]);
+  blogSign.sprite.position.set(0, 12.2, -762);
+  scene.add(blogSign.sprite);
+  // skyscrapers with neon stripes along the edges
+  for (let z = -764; z > -1030; z -= 9) {
+    for (const s of [-1, 1]) {
+      const h = R(14, 34), w = R(7, 11), x = s * R(50, 56);
+      sb.add(w, h, 8, x, h / 2, z - 4.5, '#1f1636', { jitter: 0.1 });
+      const c = neonCols[Math.floor(rnd() * neonCols.length)];
+      for (let y = 4; y < h - 1; y += R(3, 6)) neon.add(w + 0.1, 0.25, 8.1, x, y, z - 4.5, c);
+    }
+  }
+  // giant phones, ring lights, subscribe buttons and likes
+  const ringGeo = new THREE.TorusGeometry(1.1, 0.12, 6, 24);
+  const ringMat = new THREE.MeshBasicMaterial({ color: '#fffbe6' });
+  scatter(14, -768, -1005, (x, z) => {
+    sb.add(2.2, 4.4, 0.4, x, 2.4, z, '#111111', { collide: true });
+    neon.add(1.9, 3.8, 0.05, x, 2.45, z + 0.23, neonCols[Math.floor(rnd() * 4)]);
+    neon.add(1.9, 3.8, 0.05, x, 2.45, z - 0.23, neonCols[Math.floor(rnd() * 4)]);
+  }, 12, 44);
+  scatter(12, -768, -1005, (x, z) => {
+    sb.add(0.15, 3.0, 0.15, x, 1.5, z, '#333333');
+    for (const a of [0, 2.1, 4.2]) sb.add(0.12, 1.6, 0.12, x + Math.cos(a) * 0.5, 0.7, z + Math.sin(a) * 0.5, '#333333');
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(x, 4.1, z);
+    ring.rotation.y = rnd() * Math.PI;
+    scene.add(ring);
+  }, 12, 44);
+  scatter(10, -768, -1005, (x, z) => {
+    sb.add(3.2, 2.0, 0.6, x, 1.0, z, '#e53935', { collide: true });
+    neon.add(0.5, 0.9, 0.62, x - 0.05, 1.0, z, '#ffffff');
+    neon.add(0.35, 0.5, 0.63, x + 0.25, 1.0, z, '#ffffff');
+  }, 12, 44);
+  const likes = new THREE.Group();
+  const heartMat = new THREE.MeshBasicMaterial({ color: '#ff1744' });
+  const heartCells = [[-1, 1], [1, 1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, -1], [0, -1], [1, -1], [0, -2], [-2, 1], [2, 1]];
+  for (let i = 0; i < 14; i++) {
+    const h = new THREE.Group();
+    for (const [cx, cy] of heartCells) {
+      const m = new THREE.Mesh(boxGeo(0.5, 0.5, 0.3), heartMat);
+      m.position.set(cx * 0.5, cy * 0.5, 0);
+      h.add(m);
+    }
+    const side = i % 2 ? 1 : -1;
+    h.position.set(side * R(12, 40), R(6, 12), R(-770, -1000));
+    h.userData.phase = R(0, 6);
+    h.userData.y = h.position.y;
+    likes.add(h);
+  }
+  scene.add(likes);
+  animated.likes = likes;
+
   // lamps along the path
-  for (let z = -20; z > -750; z -= 22) {
+  for (let z = -20; z > -1000; z -= 22) {
     const side = Math.round(z / 22) % 2 ? 1 : -1;
     if (pens.some(p => p.def.side === side && Math.abs(p.center.z - z) < PEN_HALF + 2)) continue;
     lamp(sb, scene, side * (PATH_HALF + 1.2), z);
@@ -448,8 +514,8 @@ export function buildWorld(scene) {
 
   // ---------- Clouds ----------
   const cloudBoxes = new StaticBoxes(9);
-  for (let i = 0; i < 34; i++) {
-    const x = R(-120, 120), z = R(-780, 80), y = R(38, 55);
+  for (let i = 0; i < 44; i++) {
+    const x = R(-120, 120), z = R(-1030, 80), y = R(38, 55);
     const n = 2 + Math.floor(rnd() * 3);
     for (let k = 0; k < n; k++) cloudBoxes.add(R(6, 12), R(2, 3.5), R(5, 9), x + k * R(3, 6), y + R(-0.5, 0.8), z + R(-2, 2), '#ffffff', { jitter: 0 });
   }
@@ -459,6 +525,9 @@ export function buildWorld(scene) {
   animated.clouds = clouds;
 
   sb.build(scene);
+  const neonMesh = neon.build(scene, { shadows: false });
+  neonMesh.material = new THREE.MeshBasicMaterial();
+  neonMesh.receiveShadow = false;
 
   return { colliders: sb.colliders, pens, slots, treadmill: { group: tm, beltTex, label: tmLabel, screen }, pad, animated };
 }
