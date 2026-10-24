@@ -768,26 +768,70 @@ export function setEyesClosed(rig, closed) {
 // ---------- Eggs ----------
 const eggGeo = new THREE.SphereGeometry(0.5, 18, 14);
 const eggMats = new Map();
-export function eggMaterial(def) {
-  let m = eggMats.get(def.id);
+const RAINBOW = ['#ff1744', '#ff9100', '#ffea00', '#00e676', '#2979ff', '#d500f9'];
+// mut: 0 none, 1 gold, 2 rainbow, 3 storm (see MUTATIONS in config.js)
+export function eggMaterial(def, mut = 0) {
+  const key = `${def.id}:${mut}`;
+  let m = eggMats.get(key);
   if (!m) {
     const rnd = mulberry32(def.id.length * 97 + def.speed);
+    const base = [def.egg, '#ffd740', null, '#1a237e'][mut], spot = [def.spot, '#ff8f00', '#ffffff', '#ffeb3b'][mut];
     const tex = canvasTexture(64, 32, (ctx) => {
-      ctx.fillStyle = def.egg; ctx.fillRect(0, 0, 64, 32);
-      ctx.fillStyle = def.spot;
+      if (mut === 2) RAINBOW.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, i * 32 / 6, 64, 32 / 6 + 1); });
+      else { ctx.fillStyle = base; ctx.fillRect(0, 0, 64, 32); }
+      ctx.fillStyle = spot;
       for (let i = 0; i < 16; i++) {
         const w = 2 + Math.floor(rnd() * 5), h = 2 + Math.floor(rnd() * 4);
         ctx.fillRect(Math.floor(rnd() * 60), 4 + Math.floor(rnd() * 24), w, h);
       }
+      if (mut === 3) {                                  // lightning zigzags
+        ctx.fillStyle = '#ffeb3b';
+        for (let x = 4; x < 64; x += 16) for (let k = 0; k < 6; k++) ctx.fillRect(x + (k % 2) * 3, 4 + k * 4, 3, 5);
+      }
     });
-    m = new THREE.MeshLambertMaterial({ map: tex });
-    eggMats.set(def.id, m);
+    const emissive = ['#000000', '#5a3c00', '#3a1050', '#0a2a6a'][mut];
+    m = new THREE.MeshLambertMaterial({ map: tex, emissive });
+    eggMats.set(key, m);
   }
   return m;
 }
 
-export function createEgg(def) {
-  const m = new THREE.Mesh(eggGeo, eggMaterial(def));
+// Recolours a rig for a mutated pet (gold, rainbow blocks or a stormy blue).
+const tintCache = new Map();
+export function tintRig(root, mut) {
+  if (!mut) return;
+  let k = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const swap = (m) => {
+      const key = `${m.uuid}:${mut}:${mut === 2 ? k % 6 : 0}`;
+      let t = tintCache.get(key);
+      if (!t) {
+        t = m.clone();
+        const c = mut === 2 ? new THREE.Color(RAINBOW[k % 6]) : new THREE.Color(mut === 1 ? '#ffc400' : '#448aff');
+        t.color = (m.map ? new THREE.Color('#ffffff') : m.color.clone()).lerp(c, mut === 2 ? 0.55 : 0.6);
+        if (t.emissive) t.emissive = new THREE.Color(mut === 1 ? '#3a2800' : mut === 3 ? '#0a1a4a' : '#1a0a20');
+        tintCache.set(key, t);
+      }
+      return t;
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
+    k++;
+  });
+}
+
+export function addCrown(parent, y) {
+  const g = new THREE.Group();
+  g.position.y = y;
+  box(g, 1.0, 0.3, 1.0, '#ffd700', 0, 0, 0);
+  for (const [x, z] of [[-0.38, -0.38], [0.38, -0.38], [-0.38, 0.38], [0.38, 0.38]]) box(g, 0.22, 0.32, 0.22, '#ffd700', x, 0.3, z);
+  box(g, 0.18, 0.18, 0.08, '#e53935', 0, 0.02, 0.52);
+  parent.add(g);
+  return g;
+}
+
+export function createEgg(def, mut = 0) {
+  const m = new THREE.Mesh(eggGeo, eggMaterial(def, mut));
   const s = def.eggSize;
   m.scale.set(s, s * 1.3, s);
   m.castShadow = true;
