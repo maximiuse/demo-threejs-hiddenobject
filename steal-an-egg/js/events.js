@@ -17,6 +17,7 @@ const WEATHER = {
 
 const NIGHT_OUT_LIMIT = 2.5;    // seconds you can stay outside the base at night
 const AIM_CHANCE = 0.35;        // share of storm strikes aimed at the player: these follow you and always hit
+const FOX_EVERY = [100, 200];   // seconds between fox visits (day or night)
 const AIM_COOLDOWN = 20;        // seconds after a hit before lightning aims at the player again
 const RITUAL_TIME = 8;
 const CULT_SHARE = 0.33;
@@ -47,7 +48,7 @@ export class WorldEvents {
     this.boulders = [];
     this.boulderT = rand(1.5, 3);
     this.fox = null;
-    this.foxIn = -1;
+    this.foxIn = rand(FOX_EVERY[0], FOX_EVERY[1]);
     this.cult = null;
     this.cultT = rand(150, 240);
     this.buildSky(game.scene);
@@ -86,14 +87,11 @@ export class WorldEvents {
   onNight() {
     this.g.ui.toast('🌙 Наступила ночь! За базу выходить нельзя', 'gold', 3500);
     sfx.night();
-    const hasPets = this.g.state.pets.some(Boolean);
-    this.foxIn = hasPets && Math.random() < 0.7 ? rand(4, DAY.night - 20) : -1;
   }
 
   onDay() {
     this.g.ui.toast('☀️ Утро! Можно снова воровать яйца', 'good', 3000);
     sfx.morning();
-    this.foxIn = -1;
   }
 
   sendHome() {
@@ -518,10 +516,10 @@ export class WorldEvents {
     }
     this.updateBoulders(dt);
 
-    // the fox visits at night
-    if (this.foxIn > 0 && night) {
+    // the fox can come at any time of day; with an empty incubator it tries again a bit later
+    if (!this.fox) {
       this.foxIn -= dt;
-      if (this.foxIn <= 0) { this.foxIn = -1; this.spawnFox(); }
+      if (this.foxIn <= 0) this.foxIn = this.spawnFox() ? rand(FOX_EVERY[0], FOX_EVERY[1]) : 30;
     }
     if (this.fox) this.updateFox(dt);
 
