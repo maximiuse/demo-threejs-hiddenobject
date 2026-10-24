@@ -3,11 +3,13 @@ import * as THREE from 'three';
 import {
   ANIMALS, RARITIES, UPG, worldSpeed, speedPrice, START_SPEED, MAX_SPEED, BASE_EDGE, WORLD,
   SLOT_POS, TREADMILL, SHOP_PAD, SPAWN, SKINS, TRAILS, ADMIN_CODE,
+  MUTATIONS, rollMutation, PET, levelMult, LEGENDARY,
 } from './config.js';
 import { createPlayer, renderSkinThumbs } from './skins.js';
 import { Trail } from './trail.js';
 import { WorldEvents } from './events.js';
-import { createAnimal, createEgg, animateRig, setEyesClosed, Label, boxGeo, mat } from './models.js';
+import { BossManager } from './bosses.js';
+import { createAnimal, createEgg, eggMaterial, tintRig, addCrown, animateRig, setEyesClosed, Label, boxGeo, mat } from './models.js';
 import { buildWorld, zoneAt } from './world.js';
 import { Input } from './input.js';
 import { initAudio, setSound, sfx } from './audio.js';
@@ -71,7 +73,8 @@ function loadState() {
     const st = Object.assign(defaultState(), s);
     st.pets = Array.from({ length: UPG.slots.max }, (_, i) => {
       const p = st.pets[i];
-      return p && ANIMALS[p.a] ? p : null;
+      if (!p || !ANIMALS[p.a]) return null;
+      return { m: 0, lv: 1, xp: 0, b: 0, ...p };
     });
     st.skins = Object.assign({ classic: true }, st.skins);
     if (!SKINS.some(k => k.id === st.skin)) st.skin = 'classic';
@@ -132,12 +135,15 @@ class Animal {
     this.facing = def.side > 0 ? -Math.PI / 2 : Math.PI / 2;
     game.scene.add(this.rig.root);
 
+    this.nestMut = 0;
     this.nestEgg = createEgg(def);
     this.nestEgg.position.set(pen.nestPos.x, 0.45 + this.nestEgg.userData.halfH, pen.nestPos.z);
     game.scene.add(this.nestEgg);
+    this.mutLabel = null;
     this.eggPresent = true;
     this.respawnT = 0;
     this.popT = 1;
+    if (!def.boss) this.setNestMut(rollMutation(game.state.weather === 'storm'));
 
     this.state = 'idle';
     this.timer = Math.random() * 2;
@@ -161,6 +167,28 @@ class Animal {
   }
 
   get top() { return this.rig.height * this.def.scale; }
+
+  setNestMut(m) {
+    this.nestMut = m;
+    this.nestEgg.material = eggMaterial(this.def, m);
+    if (m && !this.mutLabel) {
+      this.mutLabel = new Label({ w: 384, h: 96, worldH: 1.0, bg: 'rgba(0,0,0,0.55)' });
+      this.g.scene.add(this.mutLabel.sprite);
+    }
+    if (this.mutLabel) {
+      const mu = MUTATIONS[m];
+      this.mutLabel.set([{ t: `${mu.name} ×${mu.mult}`, c: mu.color || '#fff', s: 48 }]);
+      this.mutLabel.sprite.position.set(this.pen.nestPos.x, 1.2 + this.def.eggSize * 2.2, this.pen.nestPos.z);
+      this.mutLabel.sprite.visible = !!m && this.eggPresent;
+    }
+  }
+
+  destroy() {
+    const sc = this.g.scene;
+    sc.remove(this.rig.root, this.nestEgg, this.alertLabel.sprite);
+    if (this.mutLabel) sc.remove(this.mutLabel.sprite);
+    if (this.zzz) sc.remove(this.zzz.sprite);
+  }
 
   setSleeping(v) {
     this.sleeping = v;
@@ -216,7 +244,7 @@ class Animal {
         break;
       }
       case 'chase': {
-        if (p.carrying !== this.idx || g.inBase(p.pos)) { this.state = 'return'; break; }
+        if (p.carrySrc !== this || g.inBase(p.pos)) { this.state = 'return'; break; }
         speed = this.moveTo(p.pos, worldSpeed(def.speed), dt);
         const d = Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z);
         if (d < 0.9 + def.scale * 0.6 && p.pos.y < this.top && !g.state.god) g.caught(this);
@@ -259,9 +287,12 @@ class Animal {
     if (this.zzz && this.sleeping) this.zzz.sprite.position.set(this.pos.x, this.top + 1 + Math.sin(t * 1.5) * 0.3, this.pos.z);
   }
 
+  // pop: a fresh egg appears (rolls a new mutation); otherwise the stolen one comes back.
   restoreEgg(pop) {
     this.eggPresent = true;
     this.nestEgg.visible = true;
+    if (pop && !this.def.boss) this.setNestMut(rollMutation(this.g.state.weather === 'storm'));
+    else if (this.mutLabel) this.mutLabel.sprite.visible = !!this.nestMut;
     this.popT = pop ? 0 : 1;
     if (!pop) this.nestEgg.scale.set(this.def.eggSize, this.def.eggSize * 1.3, this.def.eggSize);
   }
@@ -324,7 +355,7 @@ class Game {
     this.trail.setStyle(TRAILS.find(t => t.id === this.state.trail));
     this.p = {
       pos: new THREE.Vector3(SPAWN.x, 0, SPAWN.z), vy: 0, grounded: true, facing: Math.PI,
-      stun: 0, knock: new THREE.Vector3(), carrying: -1, carryMesh: null, phase: 0, moveAmt: 0,
+      stun: 0, knock: new THREE.Vector3(), carrying: -1, carryMesh: null, carrySrc: null, carryMut: 0, phase: 0, moveAmt: 0,
       training: false, onPad: false,
     };
 
@@ -335,7 +366,7 @@ class Game {
       const holder = new THREE.Group();
       holder.position.set(sp.x, 0.52, sp.z);
       this.scene.add(holder);
-      const label = new Label({ w: 384, h: 180, worldH: 1.6 });
+      const label = new Label({ w: 384, h: 240, worldH: 2.1 });
       label.sprite.visible = false;
       this.scene.add(label.sprite);
       return { i, holder, label, egg: null, rig: null, floatT: 1 + i * 0.27, pending: false, phase: i };
@@ -357,6 +388,7 @@ class Game {
     });
     this.ui = new UI(this);
     this.events = new WorldEvents(this);
+    this.bosses = new BossManager(this, Animal);
 
     addEventListener('resize', () => this.resize());
     addEventListener('orientationchange', () => setTimeout(() => this.resize(), 200));
@@ -426,7 +458,9 @@ class Game {
   }
 
   // ---------- economy ----------
-  petIncome(p) { return ANIMALS[p.a].income * RARITIES[p.r].mult; }
+  petIncome(p) {
+    return ANIMALS[p.a].income * RARITIES[p.r].mult * MUTATIONS[p.m || 0].mult * (p.b ? PET.bossMult : 1) * levelMult(p.lv);
+  }
   sellPrice(p) { return this.petIncome(p) * UPG.sellMult; }
   speedCost(k) {
     let c = 0;
@@ -601,6 +635,14 @@ class Game {
         ui.close();
         return;
       case 'adm-cult': if (s.admin) this.events.spawnCultists(true); ui.close(); return;
+      case 'adm-boss':
+        if (!s.admin) return;
+        if (!this.bosses.spawn()) ui.toast('Босс уже на карте', '', 2000);
+        ui.close();
+        return;
+      case 'merge':
+        if (!this.merge(arg)) return;
+        break;
       case 'adm-skins':
         if (!s.admin) return;
         for (const k of SKINS) s.skins[k.id] = true;
@@ -638,7 +680,7 @@ class Game {
 
   // ---------- slots ----------
   // The slot whose content earns the least (an egg counts as a common pet of its kind).
-  slotValue(p) { return ANIMALS[p.a].income * (p.r >= 0 ? RARITIES[p.r].mult : 1); }
+  slotValue(p) { return p.r >= 0 ? this.petIncome(p) : ANIMALS[p.a].income * MUTATIONS[p.m || 0].mult * (p.b ? PET.bossMult : 1); }
 
   weakestSlot() {
     let best = -1, bestV = Infinity;
@@ -673,13 +715,17 @@ class Game {
     const def = ANIMALS[p.a];
     let top;
     if (p.r < 0) {
-      v.egg = createEgg(def);
+      v.egg = createEgg(def, p.m);
+      if (p.b) v.egg.scale.multiplyScalar(1.3);
+      v.egg.userData.halfH *= p.b ? 1.3 : 1;
       v.egg.position.y = v.egg.userData.halfH;
       v.holder.add(v.egg);
       top = v.egg.userData.halfH * 2;
     } else {
       v.rig = createAnimal(def.id);
-      const sc = def.scale * 0.42;
+      tintRig(v.rig.root, p.m);
+      if (p.b) addCrown(v.rig.root, v.rig.height + 0.2);
+      const sc = def.scale * 0.42 * (p.b ? 1.3 : 1);
       v.rig.root.scale.setScalar(sc);
       v.rig.root.rotation.y = Math.random() * Math.PI * 2;
       v.holder.add(v.rig.root);
@@ -689,7 +735,7 @@ class Game {
       v.holder.add(ring);
       top = v.rig.height * sc;
     }
-    v.label.sprite.position.set(SLOT_POS[i].x, 0.52 + top + 1.3, SLOT_POS[i].z);
+    v.label.sprite.position.set(SLOT_POS[i].x, 0.52 + top + 1.6, SLOT_POS[i].z);
     v.label.sprite.visible = true;
     this.updateSlotLabel(i);
   }
@@ -698,24 +744,32 @@ class Game {
     const v = this.slotVis[i], p = this.state.pets[i];
     if (!p || v.pending) return;
     const def = ANIMALS[p.a];
+    const mu = MUTATIONS[p.m || 0];
+    const name = { t: `${p.b ? '👑 ' : ''}${def.name}`, c: p.b ? '#ffe57f' : '#ffffff', s: 44 };
+    const mut = p.m ? [{ t: `${mu.name} ×${mu.mult}`, c: mu.color, s: 32 }] : [];
     if (p.r < 0) {
-      v.label.set([{ t: def.name, c: '#ffffff', s: 44 }, { t: `Вылупится: ${Math.ceil(p.t)} с`, c: '#ffe57f', s: 36 }]);
+      v.label.set([name, ...mut, { t: `Вылупится: ${Math.ceil(p.t)} с`, c: '#ffe57f', s: 34 }]);
     } else {
       const r = RARITIES[p.r];
-      v.label.set([{ t: def.name, c: '#ffffff', s: 44 }, { t: r.name, c: r.color, s: 34 }, { t: `$${fmt(this.petIncome(p))}/с`, c: '#b9f6ca', s: 40 }]);
+      v.label.set([name, { t: `${r.name} · ур. ${p.lv || 1}`, c: r.color, s: 32 }, ...mut, { t: `$${fmt(this.petIncome(p))}/с`, c: '#b9f6ca', s: 38 }]);
     }
   }
 
   hatch(i) {
     const s = this.state, p = s.pets[i], def = ANIMALS[p.a];
-    let roll = Math.random(), r = 0;
-    if (s.forceLeg) r = RARITIES.length - 1;
-    else for (; r < RARITIES.length - 1; r++) {
-      if (roll < RARITIES[r].chance) break;
-      roll -= RARITIES[r].chance;
+    // boss eggs hatch at least epic; mythic only comes from merging
+    const minR = p.b ? 2 : 0;
+    const pool = RARITIES.map((x, i) => (i >= minR && x.chance > 0 ? x.chance : 0));
+    let roll = Math.random() * pool.reduce((a, b) => a + b, 0), r = minR;
+    if (s.forceLeg) r = LEGENDARY;
+    else for (r = 0; r < LEGENDARY; r++) {
+      if (roll < pool[r]) break;
+      roll -= pool[r];
     }
     p.r = r;
     p.t = 0;
+    p.lv = 1;
+    p.xp = 0;
     const key = `${def.id}:${r}`;
     const isNew = !s.col[key];
     s.col[key] = true;
@@ -726,8 +780,47 @@ class Game {
     this.burst(pos, def.egg, 12);
     this.burst(pos, rr.color, r > 0 ? 18 : 8);
     if (r >= 2) sfx.legendary(); else sfx.hatch();
-    this.ui.toast(`🐣 ${def.emoji} ${def.name} — ${rr.name}! +$${fmt(this.petIncome(p))}/с${isNew ? ' · новый!' : ''}`, r >= 2 ? 'gold' : 'good', 3000);
+    const mu = p.m ? ` · ${MUTATIONS[p.m].name}` : '';
+    this.ui.toast(`🐣 ${p.b ? '👑 ' : ''}${def.emoji} ${def.name} — ${rr.name}${mu}! +$${fmt(this.petIncome(p))}/с${isNew ? ' · новый!' : ''}`, r >= 2 || p.m ? 'gold' : 'good', 3000);
     this.save();
+  }
+
+  allAnimals() {
+    const b = this.bosses && this.bosses.animal;
+    return b ? [...this.animals, b] : this.animals;
+  }
+
+  // Storms bring storm eggs into the nests; when the storm ends they go back to normal.
+  onWeather(id) {
+    for (const a of this.animals) {
+      if (!a.eggPresent) continue;
+      if (id === 'storm' && Math.random() < MUTATIONS[3].stormChance) a.setNestMut(3);
+      else if (id !== 'storm' && a.nestMut === 3) a.setNestMut(0);
+    }
+  }
+
+  merge(key) {
+    const s = this.state;
+    const [a, r] = key.split(':').map(Number);
+    const idx = [];
+    for (let i = 0; i < s.slots; i++) {
+      const p = s.pets[i];
+      if (p && p.a === a && p.r === r && !this.slotVis[i].pending) idx.push(i);
+    }
+    if (idx.length < PET.merge || r >= RARITIES.length - 1) return false;
+    const use = idx.slice(0, PET.merge), parts = use.map(i => s.pets[i]);
+    const best = parts.reduce((m, q) => (MUTATIONS[q.m || 0].mult > MUTATIONS[m].mult ? q.m || 0 : m), 0);
+    const pet = { a, r: r + 1, t: 0, m: best, b: parts.some(q => q.b) ? 1 : 0, lv: Math.max(...parts.map(q => q.lv || 1)), xp: 0 };
+    for (const i of use) s.pets[i] = null;
+    s.pets[use[0]] = pet;
+    s.col[`${ANIMALS[a].id}:${r + 1}`] = true;
+    for (const i of use) this.syncSlot(i);
+    this.recalcIncome();
+    const pos = new THREE.Vector3(SLOT_POS[use[0]].x, 1.2, SLOT_POS[use[0]].z);
+    this.burst(pos, RARITIES[r + 1].color, 24);
+    sfx.legendary();
+    this.ui.toast(`🔀 Слияние! ${ANIMALS[a].emoji} ${ANIMALS[a].name} — ${RARITIES[r + 1].name}! +$${fmt(this.petIncome(pet))}/с`, 'gold', 3500);
+    return true;
   }
 
   // ---------- stealing ----------
@@ -737,11 +830,14 @@ class Game {
     const p = this.p, def = animal.def;
     animal.eggPresent = false;
     animal.nestEgg.visible = false;
-    const egg = createEgg(def);
+    if (animal.mutLabel) animal.mutLabel.sprite.visible = false;
+    const egg = createEgg(def, animal.nestMut);
     egg.position.set(0, this.rig.carryY + egg.userData.halfH, 0.25);
     this.rig.root.add(egg);
     p.carryMesh = egg;
     p.carrying = animal.idx;
+    p.carrySrc = animal;
+    p.carryMut = animal.nestMut;
     animal.alert();
     sfx.pickup();
     if (this.state.steals < 2) this.ui.toast('Беги на базу! Не дай себя поймать 🏃', 'gold');
@@ -757,6 +853,7 @@ class Game {
     this.scene.add(mesh);
     p.carryMesh = null;
     p.carrying = -1;
+    p.carrySrc = null;
     return { mesh, from };
   }
 
@@ -770,9 +867,10 @@ class Game {
       }
       return;
     }
-    const a = this.p.carrying, def = ANIMALS[a];
+    const a = this.p.carrying, def = ANIMALS[a], src = this.p.carrySrc, boss = !!src.isBoss;
+    const m = this.p.carryMut;
     const { mesh, from } = this.detachCarry();
-    this.state.pets[i] = { a, r: -1, t: def.hatch };
+    this.state.pets[i] = { a, r: -1, t: def.hatch * (boss ? 1.5 : 1), m, b: boss ? 1 : 0, lv: 1, xp: 0 };
     this.state.steals++;
     const v = this.slotVis[i];
     v.pending = true;
@@ -781,15 +879,16 @@ class Game {
       mesh, from, to, t: 0, dur: 0.7, h: 4,
       done: () => { this.scene.remove(mesh); v.pending = false; this.syncSlot(i); sfx.place(); },
     });
-    this.animals[a].respawnT = 3;
+    if (boss) this.bosses.defeated();
+    else src.respawnT = 3;
     sfx.safe();
-    this.ui.toast(`🥚 Яйцо: ${def.name} — в инкубаторе!`, 'good');
+    if (!boss) this.ui.toast(`🥚 Яйцо: ${def.name}${m ? ` (${MUTATIONS[m].name})` : ''} — в инкубаторе!`, m ? 'gold' : 'good');
     this.save();
   }
 
   // Egg goes back to the nest (caught or teleported home).
   dropEgg() {
-    const animal = this.animals[this.p.carrying];
+    const animal = this.p.carrySrc;
     const { mesh, from } = this.detachCarry();
     this.flights.push({
       mesh, from, to: animal.nestEgg.position.clone(), t: 0, dur: 0.8, h: 5,
@@ -936,7 +1035,7 @@ class Game {
 
     // interactions
     if (p.carrying < 0 && p.stun <= 0 && p.pos.y < 2) {
-      for (const a of this.animals) {
+      for (const a of this.allAnimals()) {
         if (!a.eggPresent) continue;
         const r = 1.7 + a.def.eggSize;
         const ex = p.pos.x - a.pen.nestPos.x, ez = p.pos.z - a.pen.nestPos.z;
@@ -998,6 +1097,16 @@ class Game {
         if (p.t <= 0 && !v.pending) this.hatch(i);
         else if (refresh) this.updateSlotLabel(i);
       } else if (v.rig) {
+        if ((p.lv || 1) < PET.maxLevel) {
+          p.xp = (p.xp || 0) + dt;
+          if (p.xp >= PET.xpPerLevel * (p.lv || 1)) {
+            p.lv = (p.lv || 1) + 1;
+            p.xp = 0;
+            this.recalcIncome();
+            this.updateSlotLabel(i);
+            this.floaters.spawn(`Ур. ${p.lv}!`, '#ffd740', v.label.sprite.position.clone().setY(v.label.sprite.position.y + 0.4), 70);
+          }
+        }
         v.phase += dt;
         v.rig.root.rotation.y += dt * 0.5;
         v.rig.root.position.y = Math.abs(Math.sin(v.phase * 2.2)) * 0.25;
@@ -1083,7 +1192,7 @@ class Game {
     const p = this.p;
     let hint = '', danger = false, vignette = 0;
     let nearest = Infinity;
-    for (const a of this.animals) {
+    for (const a of this.allAnimals()) {
       if (a.state === 'chase' || a.state === 'alert') nearest = Math.min(nearest, Math.hypot(a.pos.x - p.pos.x, a.pos.z - p.pos.z));
     }
     if (nearest < Infinity) vignette = clamp(1 - (nearest - 2) / 20, 0.2, 0.85);
@@ -1123,6 +1232,7 @@ class Game {
     if (this.started && !this.paused) {
       this.updatePlayer(dt);
       this.events.update(dt);
+      this.bosses.update(dt);
       for (const a of this.animals) a.update(dt);
       this.updateSlots(dt);
       this.updateEffects(dt);

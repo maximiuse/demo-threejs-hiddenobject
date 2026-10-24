@@ -1,5 +1,5 @@
 // HTML overlay: HUD, toasts, shop / pets / pause panels.
-import { ANIMALS, RARITIES, UPG, SKINS, TRAILS } from './config.js';
+import { ANIMALS, RARITIES, UPG, SKINS, TRAILS, MUTATIONS, PET, levelMult } from './config.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -180,25 +180,47 @@ export class UI {
       this.el.title.textContent = '🐣 Питомцы';
       let html = '';
       let any = false;
+      // merges available: three pets of the same kind and rarity
+      const groups = {};
+      for (let i = 0; i < s.slots; i++) {
+        const p = s.pets[i];
+        if (p && p.r >= 0 && p.r < RARITIES.length - 1) (groups[`${p.a}:${p.r}`] ||= []).push(p);
+      }
+      const merges = Object.entries(groups).filter(([, l]) => l.length >= PET.merge);
+      if (merges.length) {
+        html += '<div class="section">🔀 Слияние</div>';
+        for (const [key] of merges) {
+          const [ai, ri] = key.split(':').map(Number), a = ANIMALS[ai], r = RARITIES[ri], nr = RARITIES[ri + 1];
+          html += `<div class="card merge"><div class="big-ico">${a.emoji}</div><div class="info">
+            <div class="title">${PET.merge}× ${a.name} <span style="color:${r.color}">${r.name}</span> → <span style="color:${nr.color}">${nr.name}</span></div>
+            <div class="desc">Доход ×${nr.mult / r.mult} от одного; уровень и лучшая мутация сохранятся</div></div>
+            <div class="btns"><button class="buy" data-act="merge" data-arg="${key}">Слить</button></div></div>`;
+        }
+      }
+      html += `<div class="section">🐣 Инкубатор ${s.pets.slice(0, s.slots).filter(Boolean).length}/${s.slots}</div>`;
       for (let i = 0; i < s.slots; i++) {
         const p = s.pets[i];
         if (!p) continue;
         any = true;
-        const a = ANIMALS[p.a];
+        const a = ANIMALS[p.a], mu = MUTATIONS[p.m || 0];
+        const tags = `${p.b ? '<span class="tag boss">👑 босс ×3</span>' : ''}${p.m ? `<span class="tag" style="background:${mu.color}">${mu.name} ×${mu.mult}</span>` : ''}`;
         if (p.r < 0) {
           html += `<div class="card"><div class="big-ico">🥚</div><div class="info">
-            <div class="title">Яйцо: ${a.emoji} ${a.name}</div><div class="desc">Вылупится через ${Math.ceil(p.t)} с · ~$${fmt(a.income)}/с</div></div>
+            <div class="title">Яйцо: ${a.emoji} ${a.name} ${tags}</div><div class="desc">Вылупится через ${Math.ceil(p.t)} с · ~$${fmt(g.slotValue(p))}/с</div></div>
             <div class="btns"><button class="buy danger" data-act="discard" data-arg="${i}">Выкинуть</button></div></div>`;
         } else {
-          const r = RARITIES[p.r];
+          const r = RARITIES[p.r], lv = p.lv || 1;
+          const xp = lv >= PET.maxLevel ? 'макс.' : `${Math.floor(p.xp || 0)}/${PET.xpPerLevel * lv}`;
           html += `<div class="card" style="border-color:${r.color}55"><div class="big-ico">${a.emoji}</div><div class="info">
-            <div class="title">${a.name} <span style="color:${r.color}">· ${r.name}</span></div>
-            <div class="desc">💰 +$${fmt(g.petIncome(p))}/с</div></div>
+            <div class="title">${a.name} <span style="color:${r.color}">· ${r.name}</span> ${tags}</div>
+            <div class="desc">💰 +$${fmt(g.petIncome(p))}/с · ⭐ ур. ${lv} (×${levelMult(lv).toFixed(2)}, опыт ${xp})</div></div>
             <div class="btns"><button class="buy sell" data-act="sell" data-arg="${i}">Продать · $${fmt(g.sellPrice(p))}</button></div></div>`;
         }
       }
       if (!any) html += '<div class="empty">Пока пусто. Укради яйцо и принеси его на базу!</div>';
-      else html += '<div class="help">💡 Чтобы освободить слот: питомца можно продать, а яйцо — выкинуть. Если база полна, а ты несёшь яйцо, внизу появится кнопка «♻️ Заменить» — она уберёт самое слабое.</div>';
+      else html += `<div class="help">💡 Питомцы растут в уровне, пока сидят в инкубаторе (до ${PET.maxLevel}-го, +${PET.levelBonus * 100}% дохода за уровень).
+        ${PET.merge} одинаковых питомца одной редкости можно слить в одного редкостью выше — так получаются мифические.
+        Чтобы освободить слот: питомца можно продать, а яйцо — выкинуть.</div>`;
       const found = Object.keys(s.col).length;
       html += `<div class="section">📖 Коллекция ${found}/${ANIMALS.length * RARITIES.length}</div><div class="collection"><div></div>`;
       html += RARITIES.map(r => `<div class="hdr" style="color:${r.color}">${r.name}</div>`).join('');
@@ -274,6 +296,7 @@ export class UI {
         <button class="buy blue" data-act="adm-weather">🌦 Погода: ${{ clear: 'ясно', rain: 'дождь', storm: 'гроза' }[s.weather] || s.weather}</button>
         <button class="buy blue" data-act="adm-fox">🦊 Позвать лису</button>
         <button class="buy blue" data-act="adm-cult">🕯 Позвать культистов</button>
+        <button class="buy blue" data-act="adm-boss">👑 Позвать босса</button>
       </div>
       <div class="menu-btns">
         <button class="buy blue" data-act="adm-skins">👕 Открыть все скины и следы</button>

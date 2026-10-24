@@ -60,6 +60,38 @@ export const RARITIES = [
   { name: 'Редкий', chance: 0.22, mult: 2, color: '#42a5f5' },
   { name: 'Эпический', chance: 0.07, mult: 5, color: '#c158ff' },
   { name: 'Легендарный', chance: 0.01, mult: 15, color: '#ffc400' },
+  { name: 'Мифический', chance: 0, mult: 40, color: '#ff3d00' },     // only by merging
+];
+export const LEGENDARY = 3;
+
+// Egg mutations: rolled when an egg appears in a nest. Storm eggs only appear during a storm.
+export const MUTATIONS = [
+  { id: 'none', name: '', mult: 1 },
+  { id: 'gold', name: 'Золотая', mult: 3, chance: 0.05, color: '#ffd740' },
+  { id: 'rainbow', name: 'Радужная', mult: 6, chance: 0.015, color: '#ea80fc' },
+  { id: 'storm', name: 'Грозовая', mult: 8, stormChance: 0.25, color: '#40c4ff' },
+];
+
+export function rollMutation(storm) {
+  if (storm && Math.random() < MUTATIONS[3].stormChance) return 3;
+  const r = Math.random();
+  if (r < MUTATIONS[2].chance) return 2;
+  if (r < MUTATIONS[2].chance + MUTATIONS[1].chance) return 1;
+  return 0;
+}
+
+// Pets level up while they sit in the incubator; three identical pets merge into one of the next rarity.
+export const PET = { maxLevel: 10, xpPerLevel: 60, levelBonus: 0.25, merge: 3, bossMult: 3 };
+export const levelMult = (lv) => 1 + PET.levelBonus * ((lv || 1) - 1);
+
+// Zone bosses: a giant guarding a special egg on the path. speed: what you need to outrun it.
+export const BOSSES = [
+  { zone: 'farm', species: 'chicken', name: 'Гигантская курица', z: -130, speed: 50 },
+  { zone: 'forest', species: 'bear', name: 'Медведь-гора', z: -290, speed: 69 },
+  { zone: 'desert', species: 'dino', name: 'Король динозавров', z: -395, speed: 80 },
+  { zone: 'volcano', species: 'dragon', name: 'Древний дракон', z: -478, speed: 92 },
+  { zone: 'celestial', species: 'demonlord', name: 'Архидемон', z: -640, speed: 186 },
+  { zone: 'bloggers', species: 'millionaire', name: 'Мега-блогер', z: -892, speed: 310 },
 ];
 
 export const UPG = {

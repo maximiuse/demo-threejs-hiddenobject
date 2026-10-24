@@ -135,7 +135,7 @@ body.touch .kbd-only { display: none; }
 .buy.blue { background: #1e88e5; box-shadow: 0 3px 0 #0d47a1; }
 .section { margin-top: 16px; font-weight: 900; font-size: 17px; opacity: .9; }
 
-.collection { display: grid; grid-template-columns: auto repeat(4, 1fr); gap: 4px; margin-top: 8px; font-size: 13px; align-items: center; }
+.collection { display: grid; grid-template-columns: auto repeat(5, 1fr); gap: 4px; margin-top: 8px; font-size: 13px; align-items: center; }
 .collection .cell {
   height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 22px;
   background: rgba(0,0,0,.25); border: 2px solid transparent;
@@ -189,6 +189,9 @@ body.touch .kbd-only { display: none; }
 @keyframes pulse2 { to { box-shadow: 0 4px 0 #a85d00, 0 0 0 6px rgba(251,140,0,.35); } }
 body.touch #btnReplace { bottom: calc(150px + env(safe-area-inset-bottom)); font-size: 16px; max-width: calc(100vw - 60px); }
 
+.card .tag { display: inline-block; font-size: 11px; font-weight: 900; color: #1a1a1a; padding: 1px 6px; border-radius: 7px; margin-left: 4px; vertical-align: middle; }
+.card .tag.boss { background: #ffd740; }
+.card.merge { border-color: #ff6d00aa; background: rgba(255,109,0,.12); }
 .empty { opacity: .7; text-align: center; padding: 20px; }
 .menu-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .menu-btns .buy { font-size: 19px; padding: 13px; }

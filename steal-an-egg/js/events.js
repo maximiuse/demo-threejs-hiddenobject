@@ -110,6 +110,7 @@ export class WorldEvents {
     const s = this.g.state;
     s.weather = id;
     this.weatherT = rand(WEATHER[id].min, WEATHER[id].max);
+    this.g.onWeather(id);
     if (id === 'rain') this.g.ui.toast('🌧 Пошёл дождь', '', 2000);
     if (id === 'storm') this.g.ui.toast('⛈ Гроза! Молния может ударить в тебя где угодно, даже на базе, и отнять половину скорости', 'bad', 4000);
     this.strikeT = rand(3, 5);
