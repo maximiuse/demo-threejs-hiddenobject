@@ -99,6 +99,20 @@ function cactus(sb, x, z, s) {
   sb.add(0.6 * s, 1.0 * s, 0.6 * s, x - 1.0 * s, 2.7 * s, z, g);
 }
 
+// Little voxel house with its door facing the base (-z).
+function house(sb, x, z, w, d, wall, roof) {
+  const h = 4;
+  sb.add(w, h, d, x, h / 2, z, wall, { jitter: 0.03 });
+  sb.add(w + 0.3, 0.4, d + 0.3, x, 0.2, z, '#9e9e9e', { jitter: 0 });
+  for (let i = 0; i < 4; i++) sb.add(w + 1 - i * (w / 4), 0.8, d + 1, x, h + 0.4 + i * 0.8, z, roof, { jitter: 0.02 });
+  sb.add(1.2, 2.2, 0.12, x, 1.1, z - d / 2 - 0.06, '#6d4c41', { jitter: 0 });
+  for (const s of [-1, 1]) {
+    sb.add(1.1, 1.1, 0.12, x + s * w / 4 + s * 0.3, 2.4, z - d / 2 - 0.06, '#b3e5fc', { jitter: 0 });
+    sb.add(1.3, 0.15, 0.2, x + s * w / 4 + s * 0.3, 1.8, z - d / 2 - 0.1, '#ffffff', { jitter: 0 });
+  }
+  sb.add(0.8, 2.2, 0.8, x + w / 4, h + 2.4, z + d / 4, '#8d6e63');
+}
+
 function hayBale(sb, x, z, rotY = 0) {
   sb.add(2.2, 1.2, 1.4, x, 0.6, z, '#e3c04f', { rotY, collide: true, jitter: 0.06 });
   sb.add(2.24, 0.08, 1.44, x, 0.85, z, '#b98f2b', { rotY, jitter: 0 });
@@ -312,6 +326,44 @@ export function buildWorld(scene) {
   hayBale(sb, 31, 4.2, -0.2);
   crate(sb, -29, 4);
   crate(sb, -30.4, 4.6, 1);
+
+  // ---------- Countryside behind the base ----------
+  flatPlane(scene, 400, 220, 0, 199, -0.01, groundMat(['#5cbf3a', '#62c840', '#57b636', '#69cc47'], 'rgba(0,0,0,0.07)', 400, 220, 16));
+  // green terraced mountain
+  const greens = ['#4caf50', '#43a047', '#3d9a40', '#388e3c', '#2e7d32'];
+  for (let i = 0; i < 10; i++) {
+    const w = 170 - i * 15, d = 70 - i * 6;
+    sb.add(w, 4, d, -10 + i * 1.5, 2 + i * 4, 125 + i * 2.5, greens[i % greens.length], { jitter: 0.05 });
+  }
+  for (const [cx, cz, n, w0] of [[-95, 85, 6, 70], [90, 95, 7, 80], [-30, 175, 8, 110], [60, 170, 9, 100]]) {
+    for (let i = 0; i < n; i++) sb.add(w0 - i * (w0 / n) * 0.9, 4, w0 * 0.6 - i * (w0 / n) * 0.5, cx, 2 + i * 4, cz, greens[(i + 2) % greens.length], { jitter: 0.05 });
+  }
+  // trees on the slopes and in front of them
+  for (let i = 0; i < 40; i++) {
+    const layer = Math.floor(rnd() * 8);
+    const w = 170 - layer * 15, d = 70 - layer * 6;
+    tree(sb, -10 + layer * 1.5 + R(-w / 2 + 4, w / 2 - 4), 125 + layer * 2.5 - d / 2 + R(2, 6), R(0.9, 1.4), rnd() < 0.5 ? '#2e7d32' : '#43a047', '#6d4c2f', false);
+  }
+  for (let i = 0; i < 26; i++) {
+    const x = R(-110, 110), z = R(42, 85);
+    if ((Math.abs(x) < 50 && z < 66) || (Math.abs(x - 2) < 17 && z < 77)) continue;   // keep the village and the lake clear
+    tree(sb, x, z, R(0.9, 1.4), rnd() < 0.5 ? '#3fa34d' : '#4caf50', '#6d4c2f', false);
+  }
+  // a small village with a fenced lane
+  const houses = [[-38, 52, 7, 6, '#fff8e1', '#c62828'], [-24, 56, 6, 6, '#e3f2fd', '#1565c0'], [-10, 52, 8, 6, '#fce4ec', '#6d4c41'],
+    [14, 55, 7, 6, '#fffde7', '#2e7d32'], [28, 51, 6, 6, '#ede7f6', '#c62828'], [42, 56, 7, 7, '#fff3e0', '#5d4037']];
+  for (const [x, z, w, d, wall, roof] of houses) house(sb, x, z, w, d, wall, roof);
+  sb.add(100, 0.06, 3, 0, 0.03, 46, '#d9b77a', { jitter: 0 });
+  for (let x = -48; x <= 48; x += 2.4) sb.add(0.25, 1, 0.25, x, 0.5, 44.2, '#9a6534');
+  sb.add(97, 0.14, 0.1, 0, 0.75, 44.2, '#b77a42', { jitter: 0 });
+  // lake with a sandy shore and a pier
+  sb.add(26, 0.1, 13, 2, 0.05, 66, '#e8d39a', { jitter: 0 });
+  const lake = flatPlane(scene, 23, 10, 2, 66, 0.12, new THREE.MeshLambertMaterial({ color: '#4fc3f7', transparent: true, opacity: 0.85 }));
+  lake.receiveShadow = false;
+  sb.add(1.6, 0.25, 6, -4, 0.3, 63, '#a1683a');
+  for (const [px, pz] of [[-4.6, 61], [-3.4, 61], [-4.6, 65], [-3.4, 65]]) sb.add(0.25, 0.8, 0.25, px, 0.2, pz, '#6d4c41');
+  // flowers in the meadow
+  for (let i = 0; i < 80; i++) sb.add(0.35, 0.35, 0.35, R(-90, 90), 0.18, R(40, 100), ['#ff5252', '#ffeb3b', '#ffffff', '#e040fb', '#ff9800'][Math.floor(rnd() * 5)]);
 
   // ---------- Pens ----------
   const pens = ANIMALS.map((a, i) => {
