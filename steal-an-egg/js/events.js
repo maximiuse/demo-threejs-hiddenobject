@@ -16,6 +16,8 @@ const WEATHER = {
 };
 
 const NIGHT_OUT_LIMIT = 2.5;    // seconds you can stay outside the base at night
+const AIM_CHANCE = 0.35;        // share of storm strikes aimed at the player: these follow you and always hit
+const AIM_COOLDOWN = 20;        // seconds after a hit before lightning aims at the player again
 const RITUAL_TIME = 8;
 const CULT_SHARE = 0.33;
 const FOX_IN_SPEED = 6, FOX_OUT_SPEED = 6.5;
@@ -39,6 +41,7 @@ export class WorldEvents {
     this.wasNight = this.isNight;
     this.warned = false;
     this.strikeT = rand(3, 6);
+    this.aimCooldown = 0;
     this.strikes = [];
     this.bolts = [];
     this.boulders = [];
@@ -110,7 +113,7 @@ export class WorldEvents {
     s.weather = id;
     this.weatherT = rand(WEATHER[id].min, WEATHER[id].max);
     if (id === 'rain') this.g.ui.toast('🌧 Пошёл дождь', '', 2000);
-    if (id === 'storm') this.g.ui.toast('⛈ Гроза! Молния может отнять половину скорости — смотри под ноги', 'bad', 3500);
+    if (id === 'storm') this.g.ui.toast('⛈ Гроза! Молния может ударить в тебя где угодно, даже на базе, и отнять половину скорости', 'bad', 4000);
     this.strikeT = rand(3, 5);
   }
 
@@ -180,14 +183,14 @@ export class WorldEvents {
   scheduleStrike() {
     const g = this.g, p = g.p;
     const target = new THREE.Vector3();
-    if (!g.inBase(p.pos) && Math.random() < 0.5) target.set(p.pos.x, 0, p.pos.z);
+    const follow = this.aimCooldown <= 0 && Math.random() < AIM_CHANCE;
+    if (follow) target.set(p.pos.x, 0, p.pos.z);
     else target.set(p.pos.x + rand(-25, 25), 0, p.pos.z + rand(-25, 25));
-    target.z = Math.min(target.z, BASE_EDGE - 3);    // the base has a lightning rod
     const ring = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ color: '#ffea00', transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(target.x, 0.08, target.z);
     g.scene.add(ring);
-    this.strikes.push({ target, ring, t: 1.3 });
+    this.strikes.push({ target, ring, t: 1.3, follow });
   }
 
   strike(st) {
@@ -214,7 +217,8 @@ export class WorldEvents {
     this.flash = 1;
     sfx.thunder();
     g.burst(st.target.clone().setY(0.5), '#ffeb3b', 14);
-    if (s.god || g.inBase(p.pos) || flat(p.pos, st.target) > 2.8 || p.pos.y > 3) return;
+    if (s.god || (!st.follow && (flat(p.pos, st.target) > 2.8 || p.pos.y > 3))) return;
+    this.aimCooldown = AIM_COOLDOWN;
     const before = s.speed;
     s.speed = Math.max(START_SPEED, s.speed * 0.5);
     if (p.carrying >= 0) g.dropEgg();
@@ -487,13 +491,15 @@ export class WorldEvents {
     this.cloud += (w.cloud - this.cloud) * Math.min(1, dt * 0.4);
     this.rainAmt += (w.rain - this.rainAmt) * Math.min(1, dt * 0.4);
     this.updateRain(dt);
+    this.aimCooldown -= dt;
     if (s.weather === 'storm') {
       this.strikeT -= dt;
-      if (this.strikeT <= 0) { this.strikeT = rand(3.5, 7); this.scheduleStrike(); }
+      if (this.strikeT <= 0) { this.strikeT = rand(4, 8); this.scheduleStrike(); }
     }
     for (let i = this.strikes.length - 1; i >= 0; i--) {
       const st = this.strikes[i];
       st.t -= dt;
+      if (st.follow) { st.target.set(p.pos.x, 0, p.pos.z); st.ring.position.set(p.pos.x, 0.08, p.pos.z); }   // aimed strikes can't be dodged
       st.ring.material.opacity = 0.35 + Math.abs(Math.sin(st.t * 12)) * 0.5;
       st.ring.scale.setScalar(0.6 + (1.3 - st.t) * 0.3);
       if (st.t <= 0) { this.strike(st); this.strikes.splice(i, 1); }
