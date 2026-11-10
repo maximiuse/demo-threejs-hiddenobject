@@ -75,6 +75,12 @@ em { font-family: var(--serif); font-size: 1.15em; color: var(--accent-2); }
 .link:hover { color: var(--accent-2); text-decoration: underline; }
 .link .ic { width: 1em; height: 1em; }
 
+/* demo notice */
+.demo-banner { background: var(--accent); color: var(--on-accent); font-size: .85rem; line-height: 1.4; text-align: center; padding: .55rem 0; }
+.demo-banner strong { font-weight: 700; }
+.demo-banner a { color: var(--on-accent); font-weight: 600; text-decoration-color: rgba(26, 20, 8, .5); white-space: nowrap; }
+.demo-banner a:hover { color: #000; }
+
 /* header */
 .site-header { position: sticky; top: 0; z-index: 50; background: rgba(14, 14, 18, .86); backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid var(--line); }
@@ -101,7 +107,7 @@ em { font-family: var(--serif); font-size: 1.15em; color: var(--accent-2); }
   .no-js .site-nav { width: 100%; }
   .no-js .site-nav ul { margin-bottom: .5rem; }
   .js .nav-toggle { display: inline-flex; }
-  .js .site-nav { position: fixed; inset: var(--header-h) 0 auto 0; max-height: calc(100dvh - var(--header-h)); overflow-y: auto;
+  .js .site-nav { position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - var(--header-h)); overflow-y: auto;
     background: var(--bg); border-bottom: 1px solid var(--line); padding: .75rem var(--gutter) 1.25rem; display: none; }
   .js .site-nav.open { display: block; }
   .js .site-nav ul { flex-direction: column; gap: 0; }

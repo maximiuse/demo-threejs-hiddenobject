@@ -2,6 +2,11 @@
 # Everything here is optional: the site also works without this file.
 
 AddDefaultCharset UTF-8
+
+# Demo version – keep it out of search engines (remove for the production launch)
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow"
+</IfModule>
 DirectoryIndex index.html
 
 # --- 301 redirects from the old site (/new/...) to the new pages -----------------
