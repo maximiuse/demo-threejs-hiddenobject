@@ -1,4 +1,4 @@
+# Demo version: every page carries <meta name="robots" content="noindex, nofollow">.
+# Crawling stays allowed on purpose, so search engines can see that tag and drop the pages.
 User-agent: *
 Allow: /
-
-Sitemap: https://kep-s.com/sitemap.xml
