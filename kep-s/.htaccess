@@ -1,0 +1,69 @@
+# Kép-S – Apache settings. Assumes the site is uploaded to the web root (kep-s.com/).
+# Everything here is optional: the site also works without this file.
+
+AddDefaultCharset UTF-8
+DirectoryIndex index.html
+
+# --- 301 redirects from the old site (/new/...) to the new pages -----------------
+# /new/uf.php (Ügyfélkapu) and its files are NOT redirected – keep them on the server.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^new/?$                       /           [R=301,L]
+  RewriteRule ^new/index\.html$             /           [R=301,L]
+  RewriteRule ^new/R02\.html$               /ugyfeleknek/                         [R=301,L]
+  RewriteRule ^new/R03\.html$               /szolgaltatasok/                      [R=301,L]
+  RewriteRule ^new/R04\.html$               /rolunk/                              [R=301,L]
+  RewriteRule ^new/R05\.html$               /ugyfeleknek/#tanaroknak              [R=301,L,NE]
+  RewriteRule ^new/R06\.html$               /ugyfeleknek/#vegzosoknek             [R=301,L,NE]
+  RewriteRule ^new/R07\.html$               /ugyfeleknek/#szuloknek               [R=301,L,NE]
+  RewriteRule ^new/R08\.html$               /ugyfeleknek/#paroknak                [R=301,L,NE]
+  RewriteRule ^new/R10\.html$               /ugyfeleknek/#maganszemelyeknek       [R=301,L,NE]
+  RewriteRule ^new/R11\.html$               /ugyfeleknek/#iskolaknak              [R=301,L,NE]
+  RewriteRule ^new/R12\.html$               /ugyfeleknek/#cegeknek                [R=301,L,NE]
+  RewriteRule ^new/R13\.html$               /szolgaltatasok/szalagavato.html      [R=301,L]
+  RewriteRule ^new/R14\.html$               /szolgaltatasok/tablo.html            [R=301,L]
+  RewriteRule ^new/R16\.html$               /szolgaltatasok/                      [R=301,L]
+  RewriteRule ^new/R17\.html$               /galeria/                             [R=301,L]
+  RewriteRule ^new/D010[0-2]\.html$         /szolgaltatasok/tablo.html            [R=301,L]
+  RewriteRule ^new/D02\.html$               /szolgaltatasok/portre.html           [R=301,L]
+  RewriteRule ^new/D03\.html$               /szolgaltatasok/portre.html#retus     [R=301,L,NE]
+  RewriteRule ^new/D04\.html$               /ugyfeleknek/utanrendeles.html        [R=301,L]
+  RewriteRule ^new/D040[1-3]\.html$         /rolunk/#ertekeink                    [R=301,L,NE]
+  RewriteRule ^new/D0410\.html$             /rolunk/#csapat                       [R=301,L,NE]
+  RewriteRule ^new/D0420\.html$             /kapcsolat.html                       [R=301,L]
+  RewriteRule ^new/D05\.html$               /ugyfeleknek/potfoto.html             [R=301,L]
+  RewriteRule ^new/D0[789]\.html$           /szolgaltatasok/kulonleges.html       [R=301,L]
+  RewriteRule ^new/D10\.html$               /szolgaltatasok/szalagavato.html      [R=301,L]
+  RewriteRule ^new/D11\.html$               /szolgaltatasok/eskuvo.html           [R=301,L]
+  RewriteRule ^new/D12\.html$               /szolgaltatasok/osztalykep.html       [R=301,L]
+  RewriteRule ^new/D13\.html$               /szolgaltatasok/evkonyv.html          [R=301,L]
+  RewriteRule ^new/D15\.html$               /szolgaltatasok/ceges.html            [R=301,L]
+  RewriteRule ^new/D2300\.html$             /rolunk/                              [R=301,L]
+  RewriteRule ^new/D2400\.html$             /ugyfeleknek/letoltesek.html          [R=301,L]
+  RewriteRule ^new/G01\.html$               /galeria/tablo.html                   [R=301,L]
+  RewriteRule ^new/G02\.html$               /galeria/portre.html                  [R=301,L]
+  RewriteRule ^new/G03\.html$               /galeria/kulonleges.html              [R=301,L]
+  RewriteRule ^new/G08\.html$               /galeria/csoport.html                 [R=301,L]
+  RewriteRule ^new/G09\.html$               /galeria/paros.html                   [R=301,L]
+  RewriteRule ^new/G10(0[1-3])?\.html$      /galeria/szalagavato.html             [R=301,L]
+  RewriteRule ^new/G11\.html$               /galeria/eskuvo.html                  [R=301,L]
+  RewriteRule ^new/G12\.html$               /galeria/osztalykep.html              [R=301,L]
+  RewriteRule ^new/G16\.html$               /galeria/egesz-alakos.html            [R=301,L]
+  RewriteRule ^new/G17\.html$               /rolunk/#technologia                  [R=301,L,NE]
+  RewriteRule ^new/(AltalanosTudnivalok|TanariMeghivo|adatbekerolap_Nevsor)\.pdf$ /ugyfeleknek/letoltesek.html [R=301,L]
+</IfModule>
+
+# --- Compression & caching -----------------------------------------------------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml application/xml text/plain
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+AddType font/woff2 .woff2
